@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/CMonnin/dwkt/internal/core"
+	"github.com/CMonnin/dkt/internal/core"
 )
 
 var (

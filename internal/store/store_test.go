@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CMonnin/dwkt/internal/core"
+	"github.com/CMonnin/dkt/internal/core"
 )
 
 func TestAppendAndReadAllAcrossHosts(t *testing.T) {
@@ -54,19 +54,19 @@ func TestTornLineIsSkippedAndNotGluedToNextAppend(t *testing.T) {
 }
 
 func TestDirResolution(t *testing.T) {
-	t.Setenv("DWKT_CONFIG_DIR", "")
+	t.Setenv("DKT_CONFIG_DIR", "")
 	t.Setenv("XDG_CONFIG_HOME", "/xdg")
-	if got := ConfigDir(); got != filepath.Join("/xdg", "dwkt") {
+	if got := ConfigDir(); got != filepath.Join("/xdg", "dkt") {
 		t.Errorf("xdg: %s", got)
 	}
-	t.Setenv("DWKT_CONFIG_DIR", "/override")
+	t.Setenv("DKT_CONFIG_DIR", "/override")
 	if got := ConfigDir(); got != "/override" {
 		t.Errorf("override: %s", got)
 	}
-	t.Setenv("DWKT_DATA_DIR", "")
+	t.Setenv("DKT_DATA_DIR", "")
 	t.Setenv("XDG_DATA_HOME", "")
 	t.Setenv("HOME", "/home/u")
-	if got := DataDir(); got != "/home/u/.local/share/dwkt" {
+	if got := DataDir(); got != "/home/u/.local/share/dkt" {
 		t.Errorf("fallback: %s", got)
 	}
 }

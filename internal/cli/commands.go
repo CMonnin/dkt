@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CMonnin/dwkt/internal/app"
-	"github.com/CMonnin/dwkt/internal/core"
-	"github.com/CMonnin/dwkt/internal/editor"
-	"github.com/CMonnin/dwkt/internal/session"
+	"github.com/CMonnin/dkt/internal/app"
+	"github.com/CMonnin/dkt/internal/core"
+	"github.com/CMonnin/dkt/internal/editor"
+	"github.com/CMonnin/dkt/internal/session"
 )
 
 func openTask(t *core.Task) bool   { return t.Status.Open() }

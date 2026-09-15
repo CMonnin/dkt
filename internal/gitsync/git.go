@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CMonnin/dwkt/internal/app"
+	"github.com/CMonnin/dkt/internal/app"
 )
 
 const (
@@ -109,7 +109,7 @@ func (r Repo) AddRemote(url string) error {
 func (r Repo) LockPath() string { return filepath.Join(r.Dir, ".git", app.Name+".lock") }
 
 // CleanStaleIndexLock removes a leftover index.lock. Only call while holding
-// the flock: then no dwkt git process can legitimately own it.
+// the flock: then no dkt git process can legitimately own it.
 func (r Repo) CleanStaleIndexLock() {
 	p := filepath.Join(r.Dir, ".git", "index.lock")
 	if st, err := os.Stat(p); err == nil && time.Since(st.ModTime()) > staleIndex {

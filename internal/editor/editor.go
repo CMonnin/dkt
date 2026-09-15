@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/CMonnin/dwkt/internal/app"
+	"github.com/CMonnin/dkt/internal/app"
 )
 
 // Prepare writes content to a temp file and returns the editor command for

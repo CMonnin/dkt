@@ -4,9 +4,9 @@ package app
 
 const (
 	// Name is the binary name and the config/data directory name.
-	Name = "dwkt"
+	Name = "dkt"
 	// EnvPrefix prefixes every environment variable the tool reads.
-	EnvPrefix = "DWKT"
+	EnvPrefix = "DKT"
 	// GitHubRepo is the code repository used by self-update.
 	GitHubRepo = "CMonnin/" + Name
 )

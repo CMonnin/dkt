@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/CMonnin/dwkt/internal/core"
+	"github.com/CMonnin/dkt/internal/core"
 )
 
 func OpsDir(dataDir string) string { return filepath.Join(dataDir, "ops") }

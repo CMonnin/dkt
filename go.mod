@@ -1,4 +1,4 @@
-module github.com/CMonnin/dwkt
+module github.com/CMonnin/dkt
 
 go 1.27.1
 

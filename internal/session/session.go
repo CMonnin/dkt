@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/CMonnin/dwkt/internal/app"
-	"github.com/CMonnin/dwkt/internal/core"
-	"github.com/CMonnin/dwkt/internal/gitsync"
-	"github.com/CMonnin/dwkt/internal/store"
+	"github.com/CMonnin/dkt/internal/app"
+	"github.com/CMonnin/dkt/internal/core"
+	"github.com/CMonnin/dkt/internal/gitsync"
+	"github.com/CMonnin/dkt/internal/store"
 )
 
 const lockTimeout = 90 * time.Second

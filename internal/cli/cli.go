@@ -1,4 +1,4 @@
-// Package cli implements the dwkt subcommands.
+// Package cli implements the dkt subcommands.
 package cli
 
 import (
@@ -16,10 +16,10 @@ import (
 
 	"github.com/mattn/go-isatty"
 
-	"github.com/CMonnin/dwkt/internal/app"
-	"github.com/CMonnin/dwkt/internal/core"
-	"github.com/CMonnin/dwkt/internal/selfupdate"
-	"github.com/CMonnin/dwkt/internal/session"
+	"github.com/CMonnin/dkt/internal/app"
+	"github.com/CMonnin/dkt/internal/core"
+	"github.com/CMonnin/dkt/internal/selfupdate"
+	"github.com/CMonnin/dkt/internal/session"
 )
 
 const pushCommand = "__push"
@@ -254,7 +254,7 @@ func isSet(fs *flag.FlagSet, names ...string) bool {
 	return set
 }
 
-var usage = strings.ReplaceAll(`usage: dwkt [command]
+var usage = strings.ReplaceAll(`usage: dkt [command]
 
 With no command, opens the TUI.
 
@@ -277,4 +277,4 @@ With no command, opens the TUI.
   export [--since T] [--until T] [--tag t] [--out f.md]
   sync                                   pull and push now
   self-update                            install the latest release
-`, "dwkt", app.Name)
+`, "dkt", app.Name)

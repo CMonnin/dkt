@@ -13,9 +13,9 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/CMonnin/dwkt/internal/core"
-	"github.com/CMonnin/dwkt/internal/editor"
-	"github.com/CMonnin/dwkt/internal/session"
+	"github.com/CMonnin/dkt/internal/core"
+	"github.com/CMonnin/dkt/internal/editor"
+	"github.com/CMonnin/dkt/internal/session"
 )
 
 type tab int

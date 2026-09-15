@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/CMonnin/dwkt/internal/app"
+	"github.com/CMonnin/dkt/internal/app"
 )
 
-// ConfigDir: $DWKT_CONFIG_DIR → $XDG_CONFIG_HOME/dwkt → ~/.config/dwkt.
+// ConfigDir: $DKT_CONFIG_DIR → $XDG_CONFIG_HOME/dkt → ~/.config/dkt.
 func ConfigDir() string {
 	return resolveDir(app.Env("CONFIG_DIR"), "XDG_CONFIG_HOME", ".config")
 }
 
-// DataDir: $DWKT_DATA_DIR → $XDG_DATA_HOME/dwkt → ~/.local/share/dwkt.
+// DataDir: $DKT_DATA_DIR → $XDG_DATA_HOME/dkt → ~/.local/share/dkt.
 func DataDir() string {
 	return resolveDir(app.Env("DATA_DIR"), "XDG_DATA_HOME", filepath.Join(".local", "share"))
 }
@@ -30,7 +30,7 @@ func resolveDir(override, xdg, homeFallback string) string {
 	return filepath.Join(home, homeFallback, app.Name)
 }
 
-// Hostname: $DWKT_HOSTNAME, else the short system hostname, made filename-safe.
+// Hostname: $DKT_HOSTNAME, else the short system hostname, made filename-safe.
 func Hostname() string {
 	h := os.Getenv(app.Env("HOSTNAME"))
 	if h == "" {

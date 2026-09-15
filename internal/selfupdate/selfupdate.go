@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CMonnin/dwkt/internal/app"
+	"github.com/CMonnin/dkt/internal/app"
 )
 
 type release struct {

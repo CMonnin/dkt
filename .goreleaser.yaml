@@ -1,19 +1,19 @@
 version: 2
-project_name: dwkt
+project_name: dkt
 
 before:
   hooks:
     - go test ./...
 
 builds:
-  - main: ./cmd/dwkt
-    binary: dwkt
+  - main: ./cmd/dkt
+    binary: dkt
     env: [CGO_ENABLED=0]
     goos: [linux]
     goarch: [amd64]
     flags: [-trimpath]
     ldflags:
-      - -s -w -X github.com/CMonnin/dwkt/internal/app.Version={{ .Version }}
+      - -s -w -X github.com/CMonnin/dkt/internal/app.Version={{ .Version }}
 
 archives:
   # self-update looks for <name>_<version>_<os>_<arch>.tar.gz

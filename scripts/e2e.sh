@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-BIN=$ROOT/bin/dwkt
+BIN=$ROOT/bin/dkt
 DEV=$ROOT/.dev/e2e
 rm -rf "$DEV"
 mkdir -p "$DEV"
@@ -14,7 +14,7 @@ unset XDG_CONFIG_HOME XDG_DATA_HOME
 as() {
 	local m=$1
 	shift
-	DWKT_HOSTNAME=$m DWKT_CONFIG_DIR=$DEV/$m/config DWKT_DATA_DIR=$DEV/$m/data "$BIN" "$@"
+	DKT_HOSTNAME=$m DKT_CONFIG_DIR=$DEV/$m/config DKT_DATA_DIR=$DEV/$m/data "$BIN" "$@"
 }
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "ok   $*"; }
