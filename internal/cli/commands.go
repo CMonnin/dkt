@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/CMonnin/dkt/internal/app"
 	"github.com/CMonnin/dkt/internal/core"
 	"github.com/CMonnin/dkt/internal/editor"
@@ -164,9 +166,16 @@ func box(s core.Status) string {
 	}[s]
 }
 
+// styleBlocked renders plain when stdout is not a terminal or NO_COLOR is set.
+var styleBlocked = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+
 func (c *ctx) line(t *core.Task, showProject bool) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "  %s %s %s", core.ShortID(t.ID), box(t.Status), t.Title)
+	head := box(t.Status) + " " + t.Title
+	if t.Status == core.StatusBlocked {
+		head = styleBlocked.Render(head)
+	}
+	fmt.Fprintf(&b, "  %s %s", core.ShortID(t.ID), head)
 	if showProject && t.Project != "" {
 		fmt.Fprintf(&b, "  (%s)", c.st.ProjectName(t.Project))
 	}
@@ -174,7 +183,7 @@ func (c *ctx) line(t *core.Task, showProject bool) string {
 		b.WriteString(" #" + tag)
 	}
 	if t.Status == core.StatusBlocked && t.BlockedReason != "" {
-		b.WriteString(" — " + t.BlockedReason)
+		b.WriteString(styleBlocked.Render(" — " + t.BlockedReason))
 	}
 	if core.IsLeftover(t, c.now, c.s.Loc) {
 		b.WriteString("  [leftover]")

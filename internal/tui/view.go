@@ -167,8 +167,12 @@ func (m *Model) renderTask(t *core.Task) string {
 	switch {
 	case !t.Status.Open():
 		title = styleDone.Render(title)
+	case m.tab == tabWeek && m.isLeftover(t) && t.Status == core.StatusBlocked:
+		title = styleBlocked.Render(title) + styleLeftover.Render("  ⟲ leftover")
 	case m.tab == tabWeek && m.isLeftover(t):
 		title = styleLeftover.Render(title + "  ⟲ leftover")
+	case t.Status == core.StatusBlocked:
+		title = styleBlocked.Render(title)
 	}
 
 	var b strings.Builder
