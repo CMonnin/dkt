@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -284,5 +285,66 @@ func TestLinkedFailureUsesLastStderrLine(t *testing.T) {
 	err := Linked(context.Background(), "fake", "1", "T1")
 	if want := "dkt-fake: mark done: 401 Unauthorized"; err == nil || err.Error() != want {
 		t.Fatalf("Linked error = %v, want %q", err, want)
+	}
+}
+
+func TestInboxStripsControlCharacters(t *testing.T) {
+	esc := `\u001b]0;pwned\u0007\u001b[2J\u009b31m`
+	fake(t, `{"type":"hello","api":1,"plugin":"fake","stream":false}
+{"type":"groups","groups":[{"id":"g","name":"G`+esc+`"}]}
+{"type":"verbs","verbs":[{"key":"d","label":"dismiss`+esc+`"}],"group_verbs":[{"key":"D","verb":"d","label":"all`+esc+`"}]}
+{"type":"item","id":"1","key":"a/b#1","group":"g","label":"rev`+esc+`","ref":"b#1`+esc+`","title":"fix`+esc+`\nit","task":{"title":"T`+esc+`","category":"work","tags":["gh`+esc+`"],"note":"line one`+esc+`\nline two\ttabbed","project":{"key":"a/b","name":"B`+esc+`"}}}
+{"type":"end","cursor":"c","poll_after_s":60}
+`)
+	l, err := Inbox(context.Background(), "fake", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	it := l.Items[0]
+	got := []string{l.Groups[0].Name, l.Verbs[0].Label, l.GroupVerbs[0].Label, it.Label, it.Ref, it.Title,
+		it.Task.Title, it.Task.Tags[0], it.Task.Note, it.Task.Project.Name}
+	want := []string{"G]0;pwned[2J31m", "dismiss]0;pwned[2J31m", "all]0;pwned[2J31m", "rev]0;pwned[2J31m", "b#1]0;pwned[2J31m",
+		"fix]0;pwned[2J31m it", "T]0;pwned[2J31m", "gh]0;pwned[2J31m", "line one]0;pwned[2J31m\nline two\ttabbed", "B]0;pwned[2J31m"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("strings =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestInboxErrorTextHasNoControlCharacters(t *testing.T) {
+	fake(t, `{"type":"hello","api":1,"plugin":"fake","stream":false}
+{"type":"error","message":"bad\u001b[2J"}
+`)
+	if _, err := Inbox(context.Background(), "fake", ""); err == nil || err.Error() != "dkt-fake: bad[2J" {
+		t.Fatalf("error = %q, want %q", err, "dkt-fake: bad[2J")
+	}
+	fake(t, "")
+	t.Setenv("FAKE_STDERR", "boom\x1b[2J\x07")
+	t.Setenv("FAKE_EXIT", "1")
+	if err := Act(context.Background(), "fake", "1", "d"); err == nil || err.Error() != "dkt-fake: boom[2J" {
+		t.Fatalf("act error = %q, want %q", err, "dkt-fake: boom[2J")
+	}
+}
+
+func TestInboxKeepsOnlyWebURLs(t *testing.T) {
+	urls := []string{"https://github.com/a/b/pull/1", "http://example.com/x", "file:///etc/passwd",
+		"--help", "-https://x", "javascript:alert(1)", "https://", "ssh://host/x", "/relative"}
+	var out strings.Builder
+	out.WriteString(`{"type":"hello","api":1,"plugin":"fake","stream":false}` + "\n")
+	for i, u := range urls {
+		fmt.Fprintf(&out, `{"type":"item","id":"%d","key":"k%d","url":%q}`+"\n", i, i, u)
+	}
+	out.WriteString(`{"type":"end","cursor":"c"}` + "\n")
+	fake(t, out.String())
+	l, err := Inbox(context.Background(), "fake", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, it := range l.Items {
+		got = append(got, it.URL)
+	}
+	want := []string{"https://github.com/a/b/pull/1", "http://example.com/x", "", "", "", "", "", "", ""}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("URLs =\n%q\nwant\n%q", got, want)
 	}
 }

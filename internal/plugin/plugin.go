@@ -9,12 +9,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
 
 	"github.com/CMonnin/dkt/internal/app"
 	"github.com/CMonnin/dkt/internal/store"
@@ -134,12 +136,20 @@ func Inbox(ctx context.Context, name, cursor string) (List, error) {
 				return List{}, fmt.Errorf("%s-%s: api %d, want %d: %w", app.Name, name, m.API, API, ErrAPI)
 			}
 		case "groups":
-			l.Groups = m.Groups
+			for _, g := range m.Groups {
+				l.Groups = append(l.Groups, Group{ID: g.ID, Name: line(g.Name)})
+			}
 		case "verbs":
-			l.Verbs, l.GroupVerbs = m.Verbs, m.GroupVerbs
+			for _, v := range m.Verbs {
+				l.Verbs = append(l.Verbs, Verb{Key: v.Key, Label: line(v.Label)})
+			}
+			for _, v := range m.GroupVerbs {
+				v.Label = line(v.Label)
+				l.GroupVerbs = append(l.GroupVerbs, v)
+			}
 		case "item":
 			if m.ID != "" && m.Key != "" { // without them it can't be acted on or linked
-				l.Items = append(l.Items, m.Item)
+				l.Items = append(l.Items, cleanItem(m.Item))
 			}
 		case "end":
 			l.Cursor = m.Cursor
@@ -150,7 +160,7 @@ func Inbox(ctx context.Context, name, cursor string) (List, error) {
 			l.PollAfter = pollAfter(m.PollAfter)
 			done = true
 		case "error":
-			return List{}, fmt.Errorf("%s-%s: %s", app.Name, name, m.Message)
+			return List{}, fmt.Errorf("%s-%s: %s", app.Name, name, line(m.Message))
 		}
 	}
 	if !done {
@@ -202,7 +212,7 @@ func run(ctx context.Context, name string, args ...string) ([]byte, error) {
 	cmd.WaitDelay = time.Second // in case something escaped the process group
 	out, err := cmd.Output()
 	if err != nil {
-		msg := lastLine(stderr.String())
+		msg := line(lastLine(stderr.String()))
 		if ctx.Err() != nil {
 			msg = "timed out"
 		} else if msg == "" {
@@ -216,4 +226,58 @@ func run(ctx context.Context, name string, args ...string) ([]byte, error) {
 func lastLine(s string) string {
 	s = strings.TrimSpace(s)
 	return strings.TrimSpace(s[strings.LastIndexByte(s, '\n')+1:])
+}
+
+// Text from a plugin often comes from other people (an issue title on
+// GitHub), so it must not reach the terminal with control characters in
+// it: an escape sequence could rewrite the screen or the window title.
+
+// line is s as one line of plain text: tabs and newlines become spaces,
+// and other control characters are dropped.
+func line(s string) string { return clean(s, false) }
+
+// clean drops control characters from s, keeping tabs and newlines if
+// multiline, and turning them into spaces if not.
+func clean(s string, multiline bool) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r == '\n' || r == '\t':
+			if multiline {
+				return r
+			}
+			return ' '
+		case unicode.IsControl(r):
+			return -1
+		}
+		return r
+	}, s)
+}
+
+func cleanItem(it Item) Item {
+	it.Label, it.Ref, it.Title = line(it.Label), line(it.Ref), line(it.Title)
+	it.URL = webURL(it.URL)
+	t := &it.Task
+	t.Title, t.Category, t.Note = line(t.Title), line(t.Category), clean(t.Note, true)
+	tags := make([]string, len(t.Tags))
+	for i, tag := range t.Tags {
+		tags[i] = line(tag)
+	}
+	t.Tags = tags
+	if t.Project != nil {
+		p := *t.Project
+		p.Name = line(p.Name)
+		t.Project = &p
+	}
+	return it
+}
+
+// webURL is u if it is an http or https URL with a host, else "". The TUI
+// hands it to the system's URL opener, which must never get a file path,
+// another scheme, or something it could read as an option.
+func webURL(u string) string {
+	p, err := url.Parse(u)
+	if err != nil || (p.Scheme != "http" && p.Scheme != "https") || p.Host == "" || strings.HasPrefix(u, "-") {
+		return ""
+	}
+	return u
 }

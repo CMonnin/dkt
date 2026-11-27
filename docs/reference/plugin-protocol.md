@@ -89,6 +89,11 @@ If the first line isn't `hello`, or `api` isn't `1`, dkt stops polling the plugi
 
 dkt skips an `item` with no `id` or `key`, and any message whose `type` it doesn't know.
 
+dkt also cleans what it shows, because much of it is written by other people (an issue title, for example):
+
+- It drops control characters, such as terminal escape sequences, from all text: labels, titles, tags, group and verb names, and error messages. In one-line fields, tabs and newlines become spaces. The suggested note keeps its tabs and newlines.
+- It keeps `url` only if it's an `http` or `https` URL with a host. Otherwise the item has no link.
+
 ### `dkt-<name> act <id> <verb>`
 
 Runs one of the plugin's verbs on one item. Exit 0 means it worked, and dkt removes the item. Non-zero means it failed: dkt keeps the item and shows the last stderr line. For a group verb, dkt runs `act` once per item.
