@@ -100,7 +100,8 @@ A plugin keeps its own files in `$DKT_CONFIG_DIR/plugins/<name>/`. It never writ
 A per-task and per-project key/value store that plugins own, so dkt core never learns plugin terms.
 
 - **Ops:** `task.set` and `project.set` with `field = "x.<plugin>.<key>"` and a string value. An empty string deletes the key.
-- **Model:** `Task.Ext` and `Project.Ext`, both `map[string]string`. In `applyTaskSet` and `applyProjectSet`, any field starting with `x.` goes into `Ext`.
+- **Model:** an unexported `map[string]string` on `Task` and `Project`, read through a method, `Ext(plugin, key) string`, so nothing outside replay can change it. In `applyTaskSet` and `applyProjectSet`, any field starting with `x.` goes into that map.
+- **Builders:** `SetTaskExt` and `SetProjectExt` return the ops. They reject a plugin name that isn't lowercase letters, digits and `-`, an empty key, and a value containing a newline. Keys may contain `.` and `/` (e.g. `project.CoBrALab/RABIES`).
 - **Compatibility:** older dkt binaries already ignore unknown `*.set` fields, because the `switch` in `internal/core/state.go` has no `default`. Machines that haven't upgraded are unaffected.
 - Normal listings and the edit form don't show them, so you can't break a link by accident.
 - There is no CLI for them yet (`dkt ext …` waits for a need).
