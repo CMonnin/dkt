@@ -21,9 +21,9 @@ import (
 
 	"github.com/CMonnin/dkt/internal/app"
 	"github.com/CMonnin/dkt/internal/core"
+	"github.com/CMonnin/dkt/internal/plugin"
 	"github.com/CMonnin/dkt/internal/selfupdate"
 	"github.com/CMonnin/dkt/internal/session"
-	"github.com/CMonnin/dkt/internal/store"
 )
 
 const pushCommand = "__push"
@@ -143,13 +143,7 @@ func pluginNames() []string {
 func runPlugin(path string, args []string) int {
 	cmd := exec.Command(path, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	exe, _ := os.Executable()
-	cmd.Env = append(os.Environ(),
-		app.Env("BIN")+"="+exe,
-		app.Env("CONFIG_DIR")+"="+store.ConfigDir(),
-		app.Env("DATA_DIR")+"="+store.DataDir(),
-		app.Env("PLUGIN_API")+"=1",
-	)
+	cmd.Env = plugin.Environ()
 	err := cmd.Run()
 	if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 		return ee.ExitCode() // the plugin has already reported its own error

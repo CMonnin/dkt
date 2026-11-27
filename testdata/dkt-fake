@@ -1,0 +1,16 @@
+#!/bin/sh
+# A fake dkt plugin for tests, so they never need a real plugin or the
+# network. Everything it does is set through the environment:
+#
+#   FAKE_LOG     append one line per run: its arguments
+#   FAKE_ENVLOG  write the DKT_* variables it was given
+#   FAKE_SLEEP   seconds to sleep before answering
+#   FAKE_STDOUT  file whose contents it prints to stdout
+#   FAKE_STDERR  text it prints to stderr
+#   FAKE_EXIT    exit code (default 0)
+[ -n "$FAKE_LOG" ] && printf '%s\n' "$*" >> "$FAKE_LOG"
+[ -n "$FAKE_ENVLOG" ] && env | grep '^DKT_' | sort > "$FAKE_ENVLOG"
+[ -n "$FAKE_SLEEP" ] && sleep "$FAKE_SLEEP"
+[ -n "$FAKE_STDOUT" ] && cat "$FAKE_STDOUT"
+[ -n "$FAKE_STDERR" ] && printf '%s\n' "$FAKE_STDERR" >&2
+exit "${FAKE_EXIT:-0}"
