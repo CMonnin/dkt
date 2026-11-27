@@ -15,6 +15,7 @@ import (
 
 	"github.com/CMonnin/dkt/internal/core"
 	"github.com/CMonnin/dkt/internal/editor"
+	"github.com/CMonnin/dkt/internal/plugin"
 	"github.com/CMonnin/dkt/internal/session"
 )
 
@@ -63,6 +64,8 @@ const (
 	modeRename
 	modeDescribe
 	modeConfirmArchive
+	modeLinkTitle    // T/B in the inbox: edit the title, then link
+	modeConfirmGroup // a plugin group verb that asks first
 )
 
 type (
@@ -99,6 +102,14 @@ type Model struct {
 
 	keys keyMap
 	help help.Model
+
+	ib             *inbox
+	inInbox        bool // showing the inbox instead of a tab
+	touched        bool // a key was pressed: don't jump to the inbox any more
+	pending        *entry
+	pendingBacklog bool
+	pendingGroup   []entry
+	pendingVerb    plugin.GroupVerb
 }
 
 func Run(s *session.Session) error {
@@ -113,6 +124,7 @@ func Run(s *session.Session) error {
 func New(s *session.Session) (*Model, error) {
 	m := &Model{s: s, now: time.Now, keys: newKeys(), help: help.New(), input: textinput.New()}
 	m.input.CharLimit = 500
+	m.ib = newInbox(s.Cfg.Inbox)
 	if err := m.reload(); err != nil {
 		return nil, err
 	}
@@ -122,11 +134,16 @@ func New(s *session.Session) (*Model, error) {
 }
 
 // Init pushes anything the startup pull committed (e.g. recovered ops).
+// It also starts polling the inbox plugins.
 func (m *Model) Init() tea.Cmd {
+	var cmds []tea.Cmd
 	if m.status.Unpushed > 0 {
-		return m.push()
+		cmds = append(cmds, m.push())
 	}
-	return nil
+	for _, name := range m.ib.plugins {
+		cmds = append(cmds, m.poll(name))
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -155,7 +172,20 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case editorDoneMsg:
 		return m, m.finishEditor(msg)
+	case pollMsg:
+		if m.ib.stopped(msg.name) {
+			return m, nil
+		}
+		return m, m.poll(msg.name)
+	case pollDoneMsg:
+		return m, m.pollDone(msg)
+	case actDoneMsg:
+		m.actDone(msg)
+		return m, nil
+	case linkedDoneMsg:
+		return m, nil
 	case tea.KeyMsg:
+		m.touched = true
 		if m.mode != modeNormal {
 			return m, m.updateInput(msg)
 		}
@@ -247,6 +277,9 @@ func (m *Model) buildRows() {
 	oldCursor := m.cursor
 	now := m.now()
 	var rows []row
+	if m.inInbox {
+		m.tab = tabWeek // where esc goes back to
+	}
 	group := func(title string, tasks []*core.Task, in func(*core.Task) bool) {
 		first := true
 		for _, t := range tasks {
@@ -261,12 +294,14 @@ func (m *Model) buildRows() {
 		}
 	}
 
-	switch m.tab {
-	case tabWeek:
+	switch {
+	case m.inInbox:
+		rows = m.ib.rows(m.st)
+	case m.tab == tabWeek:
 		tasks := m.filter(m.st.WeekTasks(now, m.s.Loc))
 		group("Work", tasks, func(t *core.Task) bool { return m.st.EffectiveCategory(t) == core.Work })
 		group("Personal", tasks, func(t *core.Task) bool { return m.st.EffectiveCategory(t) == core.Personal })
-	case tabBacklog:
+	case m.tab == tabBacklog:
 		tasks := m.filter(m.st.BacklogTasks())
 		if m.projectFilter == "" {
 			group("Inbox", tasks, func(t *core.Task) bool { return t.Project == "" })
@@ -276,11 +311,11 @@ func (m *Model) buildRows() {
 				group(p.Name, tasks, func(t *core.Task) bool { return t.Project == p.ID })
 			}
 		}
-	case tabProjects:
+	case m.tab == tabProjects:
 		for _, p := range m.st.SortedProjects(false) {
 			rows = append(rows, row{project: p})
 		}
-	case tabHistory:
+	case m.tab == tabHistory:
 		for _, t := range m.filter(m.st.HistoryTasks()) {
 			rows = append(rows, row{task: t})
 		}
@@ -369,6 +404,7 @@ func (m *Model) move(delta int) {
 }
 
 func (m *Model) setTab(t tab) {
+	m.inInbox = false
 	if t != m.tab {
 		m.search = ""
 		if t != tabBacklog {
@@ -402,8 +438,17 @@ func (m *Model) updateNormal(msg tea.KeyMsg) tea.Cmd {
 	k, now := m.keys, m.now()
 	t, p := m.selectedTask(), m.selectedProject()
 
+	if m.inInbox {
+		if cmd, ok := m.updateInbox(msg); ok {
+			return cmd
+		}
+		if !isNavKey(k, msg) {
+			return nil
+		}
+	}
+
 	// Leftover triage on the Week tab takes precedence over navigation.
-	if m.tab == tabWeek {
+	if m.tab == tabWeek && !m.inInbox {
 		if t != nil && m.isLeftover(t) {
 			var cmd tea.Cmd
 			switch msg.String() {
@@ -452,6 +497,12 @@ func (m *Model) updateNormal(msg tea.KeyMsg) tea.Cmd {
 		m.move(-1)
 	case key.Matches(msg, k.Sync):
 		return m.sync()
+	case key.Matches(msg, k.Inbox):
+		if len(m.ib.plugins) == 0 {
+			m.flash = "no inbox plugins: add inbox = [\"<name>\"] to config.toml"
+			return nil
+		}
+		m.openInbox()
 	case key.Matches(msg, k.Esc):
 		m.search, m.projectFilter = "", ""
 		m.buildRows()
@@ -542,6 +593,16 @@ func (m *Model) updateNormal(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+// isNavKey is true for the keys that work the same on the inbox screen.
+func isNavKey(k keyMap, msg tea.KeyMsg) bool {
+	for _, b := range []key.Binding{k.Quit, k.Help, k.Tabs, k.NextTab, k.PrevTab, k.Down, k.Up, k.Top, k.Bottom, k.Sync} {
+		if key.Matches(msg, b) {
+			return true
+		}
+	}
+	return false
+}
+
 func otherCategory(c core.Category) core.Category {
 	if c == core.Work {
 		return core.Personal
@@ -568,6 +629,13 @@ func (m *Model) updateInput(msg tea.KeyMsg) tea.Cmd {
 		if msg.String() == "y" && p != nil {
 			m.flash = "archived " + p.Name
 			return m.apply(core.ArchiveProject(m.st, p, m.now()), "project archive: "+p.Name)
+		}
+		return nil
+	}
+	if m.mode == modeConfirmGroup {
+		m.mode = modeNormal
+		if msg.String() == "y" {
+			return m.actGroup(m.pendingGroup, m.pendingVerb.Verb)
 		}
 		return nil
 	}
@@ -621,6 +689,11 @@ func (m *Model) submit(md mode, val string) tea.Cmd {
 	fail := func(err error) tea.Cmd { m.flash = err.Error(); return nil }
 
 	switch md {
+	case modeLinkTitle:
+		if e := m.pending; e != nil && strings.TrimSpace(val) != "" {
+			m.pending = nil
+			return m.linkItem(*e, val, m.pendingBacklog)
+		}
 	case modeSearch:
 		m.search = val
 		m.buildRows()

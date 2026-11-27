@@ -4,7 +4,7 @@ Run `dkt` with no command to open the TUI. It pulls from the remote before it op
 
 ## Screen
 
-- **Top line:** the four tabs and the sync status. The status shows `synced`, `N unpushed` or `local only`, and it adds `syncing…` while a push or sync runs.
+- **Top line:** the four tabs and the sync status. The status shows `synced`, `N unpushed` or `local only`, and it adds `syncing…` while a push or sync runs. With [inbox plugins](#inbox), it starts with the inbox counter, e.g. `📥 7`.
 - **Filter line:** the active search and project filter, if any.
 - **Leftover banner:** on the Week tab, when leftovers exist.
 - **List:** tasks or projects under group headings.
@@ -39,6 +39,7 @@ When you change tabs, the search clears. The project filter clears unless the ne
 | `/` | Search (not on Projects) |
 | `esc` | Clear the search and the project filter |
 | `R` | Pull, push and reload |
+| `I` | Open the [inbox](#inbox) |
 | `?` | Show or hide full help |
 | `q`, `ctrl+c` | Quit |
 
@@ -83,6 +84,53 @@ On the Week tab, a leftover row shows `⟲ leftover`. The cursor starts on the f
 
 `k` means keep only when the cursor is on a leftover. `↑` always moves up.
 
+## Inbox
+
+The inbox lists items from the plugins named in `inbox` in [`config.toml`](configuration.md), for example GitHub notifications from `dkt-gh`. Without inbox plugins, there's no inbox.
+
+### Polling
+
+- dkt polls each plugin when the TUI opens, then as often as the plugin asks (at least every 30 s). The CLI never polls.
+- The top line shows the number of items, e.g. `📥 7`.
+- If a poll fails, the last list stays, the counter turns grey with a `?` (`📥 7?`), and the reason is shown once. dkt retries after 60 s.
+- When the first results arrive, dkt opens the inbox, but only if you haven't pressed a key yet and there are no leftovers. Otherwise only the counter changes.
+
+### Layout
+
+```
+📥 Inbox (4)
+↻ Updates
+▸ RABIES#520  new activity · task: Review: atlas registration  1h
+Needs you
+  [review] RABIES#533  fix motion correction  2h
+  [assigned] CPPQ#12  export fails on empty session  1d
+FYI
+  [subscribed] RABIES  v0.5.2 released  1d
+```
+
+- **↻ Updates:** new activity on items that are already tasks.
+- Then the plugin's groups, in its order. Items in a group the plugin didn't declare go under **Other**. With several plugins, each header starts with the plugin's name.
+- Within a group, newest first.
+- Items that are already tasks, with nothing new, aren't shown.
+
+### Inbox keys
+
+| Key | Action |
+|---|---|
+| `t` | Make a task on this week from the item, linked to it. The plugin is told (for GitHub: marked done). |
+| `b` | The same, in the backlog. |
+| `T`, `B` | The same, but edit the title first. |
+| `z` | Hide the item until the TUI is next opened. |
+| `o` | Open the item's web page. |
+| `r` | On a ↻ item whose task is closed: reopen the task. |
+| `esc` | Go to the Week tab. |
+
+`t`, `b`, `T` and `B` aren't offered on ↻ items, so the same thing can't become two tasks.
+
+The plugin adds its own keys, shown in the help line. For `dkt-gh`: `d` dismiss, `u` unsubscribe, and `D` dismiss the whole group (asks `[y/N]`). If a plugin key fails, the item stays and the reason is shown.
+
+A task made from an item gets the plugin's suggested title, category, tags and note. It goes in the project linked to the item's project, or else in a project with the suggested name, or else in a new one.
+
 ## Input prompts
 
 | Prompt | Behaviour |
@@ -91,6 +139,7 @@ On the Week tab, a leftover row shows `⟲ leftover`. The cursor starts on the f
 | Search | Filters as you type. Words that start with `#` must be tags on the task. Other words must appear in the title. |
 | Tags | The field holds the full tag set. Separate tags with spaces or commas. `tab` completes a tag from tags already in use. |
 | Note | One line. If the note has several lines, use `E`. |
+| Task title | From `T` or `B` in the inbox. Prefilled with the plugin's suggestion. |
 
 In a prompt, `enter` saves and `esc` cancels. `esc` in the search prompt also clears the search.
 

@@ -12,7 +12,7 @@ This design also defines dkt's **plugin contract**. GitHub is its first user, an
 ## 1. What the user sees
 
 1. **On opening the TUI:** if there are leftovers, the leftovers step comes first, as it does today. Then, if there's anything to triage, dkt opens on the **inbox**. Once the inbox is empty, or you press `esc`, you're on the Week tab.
-2. **While the TUI is open:** dkt polls in the background. New items only update a counter in the status bar, e.g. `📥 7`. It never takes over the screen mid-session. `i` opens the inbox.
+2. **While the TUI is open:** dkt polls in the background. New items only update a counter in the status bar, e.g. `📥 7`. It never takes over the screen mid-session. `I` opens the inbox (`i` already means doing). *Built:* the first poll finishes after the TUI is open, so dkt opens on the inbox only if no key has been pressed yet and there are no leftovers.
 3. **When polling fails** (offline, GitHub down, not logged in): the last list stays visible, the counter turns grey with a `?` (`📥 7?`), the reason is shown once as a flash message, and polling retries quietly.
 4. **CLI commands never touch the network.** The inbox exists only in the TUI.
 
@@ -276,7 +276,7 @@ It's released with goreleaser, the same way as dkt, and installed next to `dkt` 
 | `internal/plugin` (new) | Find plugins, build their environment, run `inbox`/`act`/`linked` with timeouts, parse and validate messages. |
 | `internal/cli` | Dispatch to `dkt-<name>` (§3.1); list plugins in `help`. |
 | `internal/store` | Read `inbox` from `config.toml`. |
-| `internal/tui` | Inbox mode, after the leftovers step; status-bar counter; polling with `tea.Tick`; `i` key; postponed set in memory; keys from §1.2. |
+| `internal/tui` | Inbox mode, after the leftovers step; status-bar counter; polling with `tea.Tick`; `I` key; postponed set in memory; keys from §1.2. |
 | `testdata/` | A fake plugin (a script that prints canned messages and records the `act`/`linked` calls it gets), so dkt's tests never need `dkt-gh` or the network. |
 | Docs | New `reference/plugin-protocol.md` (§3, the stable contract); updates to `reference/cli.md` (dispatch), `reference/configuration.md` (`inbox`), `reference/data-format.md` (`x.` fields), `reference/tui.md` (inbox) and `reference/packages.md` (`internal/plugin`). |
 

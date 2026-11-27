@@ -46,7 +46,7 @@ func (m *Model) View() string {
 	if len(filters) > 0 {
 		top = append(top, styleFaint.Render(strings.Join(filters, " · ")+"  (esc clears)"))
 	}
-	if m.tab == tabWeek {
+	if m.tab == tabWeek && !m.inInbox {
 		if n := len(m.leftovers()); n > 0 {
 			top = append(top, styleBanner.Render(fmt.Sprintf(
 				"%d leftover%s from last week — k keep · d defer · D drop · esc keep all", n, plural(n))))
@@ -56,6 +56,8 @@ func (m *Model) View() string {
 	var bottom []string
 	switch m.mode {
 	case modeNormal:
+	case modeConfirmGroup:
+		bottom = append(bottom, styleWarn.Render(fmt.Sprintf("%s: %d item%s? [y/N]", m.pendingVerb.Label, len(m.pendingGroup), plural(len(m.pendingGroup)))))
 	case modeConfirmArchive:
 		if p := m.st.Projects[m.target]; p != nil {
 			bottom = append(bottom, styleWarn.Render(fmt.Sprintf("archive %q and drop its open tasks? [y/N]", p.Name)))
@@ -82,7 +84,11 @@ func (m *Model) View() string {
 		lines = append(lines, clip.Render(m.renderRow(i)))
 	}
 	if len(m.rows) == 0 {
-		lines = append(lines, styleFaint.Render("  nothing here"))
+		empty := "  nothing here"
+		if m.inInbox {
+			empty = "  inbox is empty — esc for the week"
+		}
+		lines = append(lines, styleFaint.Render(empty))
 	}
 	for len(lines) < bodyH {
 		lines = append(lines, "")
@@ -109,9 +115,12 @@ func (m *Model) scrollTo(h int) {
 
 func (m *Model) viewTabs() string {
 	var tabs []string
+	if m.inInbox {
+		tabs = append(tabs, styleActiveTab.Render(fmt.Sprintf("📥 Inbox (%d)", m.inboxCount())))
+	}
 	for i, name := range tabNames {
 		label := fmt.Sprintf("%d %s", i+1, name)
-		if tab(i) == m.tab {
+		if tab(i) == m.tab && !m.inInbox {
 			tabs = append(tabs, styleActiveTab.Render(label))
 		} else {
 			tabs = append(tabs, styleTab.Render(label))
@@ -125,6 +134,14 @@ func (m *Model) viewTabs() string {
 	right := styleFaint.Render(status)
 	if m.status.Unpushed > 0 {
 		right = styleWarn.Render(status)
+	}
+	if len(m.ib.plugins) > 0 {
+		counter := fmt.Sprintf("📥 %d", m.inboxCount())
+		if m.ib.stale() {
+			right = styleFaint.Render(counter+"?") + "  " + right
+		} else {
+			right = counter + "  " + right
+		}
 	}
 	gap := max(m.width-lipgloss.Width(left)-lipgloss.Width(right), 1)
 	return left + strings.Repeat(" ", gap) + right
@@ -141,6 +158,9 @@ func (m *Model) renderRow(i int) string {
 	}
 	if r.project != nil {
 		return cursor + m.renderProject(r.project)
+	}
+	if r.inbox != nil {
+		return cursor + renderItem(r.inbox, m.now())
 	}
 	return cursor + m.renderTask(r.task)
 }
@@ -201,6 +221,9 @@ func (m *Model) renderTask(t *core.Task) string {
 
 func (m *Model) shortHelp() []key.Binding {
 	k := m.keys
+	if m.inInbox {
+		return m.inboxHelp()
+	}
 	switch m.tab {
 	case tabWeek:
 		if t := m.selectedTask(); t != nil && m.isLeftover(t) {
@@ -222,8 +245,31 @@ func (m *Model) fullHelp() [][]key.Binding {
 		{k.Add, k.Done, k.Doing, k.Block, k.Drop, k.Week, k.Defer},
 		{k.Tags, k.Note, k.Editor, k.Search, k.Category, k.Esc},
 		{k.Open, k.Rename, k.Describe, k.Archive},
-		{k.Keep, k.KeepAll, k.Sync, k.Help, k.Quit},
+		{k.Keep, k.KeepAll, k.Inbox, k.Sync, k.Help, k.Quit},
 	}
+}
+
+// inboxHelp shows dkt's keys and the plugin's for the selected item.
+func (m *Model) inboxHelp() []key.Binding {
+	k := m.keys
+	r := m.selected()
+	if r == nil || r.inbox == nil {
+		return []key.Binding{k.LeaveInbox, k.Help, k.Quit}
+	}
+	var out []key.Binding
+	if r.inbox.task == nil {
+		out = append(out, k.ItemTask, k.ItemBacklog, k.ItemEdit)
+	} else if !r.inbox.task.Status.Open() {
+		out = append(out, k.ReopenTask)
+	}
+	out = append(out, k.Postpone, k.OpenItem)
+	for _, v := range m.ib.verbs(r.inbox.plugin) {
+		out = append(out, bind(v.Key, v.Label, v.Key))
+	}
+	for _, v := range m.ib.groupVerbs(r.inbox.plugin) {
+		out = append(out, bind(v.Key, v.Label, v.Key))
+	}
+	return append(out, k.LeaveInbox, k.Help, k.Quit)
 }
 
 func plural(n int) string {
