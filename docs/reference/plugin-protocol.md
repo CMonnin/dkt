@@ -88,7 +88,7 @@ dkt counts an inbox run as failed, and keeps its previous list, if:
 
 If the first line isn't `hello`, or `api` isn't `1`, dkt stops polling the plugin. Polling again won't help.
 
-dkt skips an `item` with no `id` or `key`, and any message whose `type` it doesn't know.
+dkt skips an `item` with no `id` or `key`, or with a control character, tab or newline in either. They're identities, so dkt drops them rather than cleaning them. It also skips any message whose `type` it doesn't know.
 
 dkt also cleans what it shows, because much of it is written by other people (an issue title, for example):
 

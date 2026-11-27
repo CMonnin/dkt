@@ -152,7 +152,10 @@ func Inbox(ctx context.Context, name, cursor string) (List, error) {
 				l.GroupVerbs = append(l.GroupVerbs, v)
 			}
 		case "item":
-			if m.ID != "" && m.Key != "" { // without them it can't be acted on or linked
+			// Without an id and key it can't be acted on or linked. They're
+			// identities, so one with control characters is dropped, not
+			// cleaned: a cleaned key could match the wrong task.
+			if m.ID != "" && m.Key != "" && line(m.ID) == m.ID && line(m.Key) == m.Key {
 				l.Items = append(l.Items, cleanItem(m.Item))
 			}
 		case "end":
@@ -239,6 +242,10 @@ func lastLine(s string) string {
 // line is s as one line of plain text: tabs and newlines become spaces,
 // and other control characters are dropped.
 func line(s string) string { return clean(s, false) }
+
+// Line is line for other packages: for plugin text stored before it was
+// cleaned on the way in, e.g. an item key kept on a task.
+func Line(s string) string { return line(s) }
 
 // clean drops control characters from s, keeping tabs and newlines if
 // multiline, and turning them into spaces if not.

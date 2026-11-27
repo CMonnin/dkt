@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -98,3 +100,29 @@ func TestInboxKnowsWhatIsStillListed(t *testing.T) {
 		t.Fatal("stillListed should follow the latest list")
 	}
 }
+
+func TestHiddenRowsDrawNoControlCharacters(t *testing.T) {
+	// A key stored before plugin output was checked could hold anything.
+	evil := "o/r#1\x1b]0;pwned\x07\x1b[2J"
+	ops, id, err := core.LinkItem(core.Replay(nil), core.LinkRequest{Plugin: "gh", Key: evil, Title: "title\x1b[31m"}, t0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := core.Replay(ops)
+	st = core.Replay(append(ops, core.HideTask(st.Tasks[id], "gh", t0)...))
+	m := &Model{ib: newInbox([]string{"gh"}), now: func() time.Time { return t0 }}
+	for _, listed := range []bool{true, false} {
+		if !listed {
+			m.ib.update("gh", ghList(), nil) // a list without it: "no longer open"
+		}
+		if got := m.renderHidden(st.Tasks[id]); strings.ContainsAny(got, "\x07\x9b") || strings.Contains(stripStyles(got), "\x1b") {
+			t.Fatalf("listed %v: row %q has control characters", listed, got)
+		}
+	}
+}
+
+// stripStyles removes the SGR sequences lipgloss adds, so only text the
+// row got from data is left to check.
+func stripStyles(s string) string { return sgr.ReplaceAllString(s, "") }
+
+var sgr = regexp.MustCompile(`\x1b\[[0-9;]*m`)

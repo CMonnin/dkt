@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/CMonnin/dkt/internal/core"
+	"github.com/CMonnin/dkt/internal/plugin"
 )
 
 var (
@@ -247,13 +248,14 @@ func (m *Model) shortHelp() []key.Binding {
 // and whether the item is still open at the source.
 func (m *Model) renderHidden(t *core.Task) string {
 	name, key := m.taskPlugin(t)
-	line := t.Title
+	title, ref := plugin.Line(t.Title), plugin.Line(name+" "+key) // the key came from the plugin
+	line := title
 	if name != "" {
-		line += styleFaint.Render("  " + name + " " + key)
+		line += styleFaint.Render("  " + ref)
 	}
 	line += styleFaint.Render("  hidden " + age(m.now().Sub(t.HiddenAt())) + " ago")
 	if name != "" && !m.ib.stillListed(name, key) {
-		return styleFaint.Render(t.Title+"  "+name+" "+key) + styleFaint.Render("  no longer open")
+		return styleFaint.Render(title+"  "+ref) + styleFaint.Render("  no longer open")
 	}
 	return line
 }
