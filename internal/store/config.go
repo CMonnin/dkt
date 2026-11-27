@@ -12,10 +12,11 @@ import (
 )
 
 type Config struct {
-	MeetingDay      string `toml:"meeting_day"`
-	MeetingTime     string `toml:"meeting_time"`
-	DefaultCategory string `toml:"default_category"`
-	MachineID       string `toml:"machine_id"`
+	MeetingDay      string   `toml:"meeting_day"`
+	MeetingTime     string   `toml:"meeting_time"`
+	DefaultCategory string   `toml:"default_category"`
+	MachineID       string   `toml:"machine_id"`
+	Inbox           []string `toml:"inbox,omitempty"` // plugins whose inbox the TUI polls
 }
 
 func DefaultConfig() Config {
