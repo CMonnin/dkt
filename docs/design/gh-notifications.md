@@ -305,6 +305,8 @@ Checked on 2026-11-27 with `curl` against the owner's account, marking one relea
 | Does `Last-Modified` change after a thread is marked done? | **No.** It stayed the same, so it can't be used as a cursor. *Unverified:* that the `ETag` changes after mark done. It looks like a hash of the response body, so it should. |
 | What does `DELETE /notifications/threads/{id}` (mark done) do? | `204`. The thread leaves the unread list, but the thread still exists: `GET /notifications/threads/{id}` returns it with `unread: false`, and it still appears with `?all=true`. |
 | Does a thread keep its ID when it comes back after mark done? | **Not tested.** A release never gets new activity. The thread surviving mark done makes reuse very likely. Links use the subject key anyway, so nothing depends on it. |
+| Does the weak `ETag` (`W/"…"`) still give `304` through `dkt-gh inbox --cursor`? | **Yes** (checked 2026-11-27 with the built `dkt-gh`, read-only, with `gh`'s OAuth token, which has the `repo` scope but not `notifications`). The poll interval was 60 s. |
+| What does a real inbox look like? | 193 unread: 20 in Needs you, 92 in Your stuff, 81 in FYI. 72 were `ci_activity` with no subject URL, so they're keyed `thread/<id>`, and they make up most of Your stuff. Worth tuning in step 7. |
 | (Worklenz, later) Does Worklenz's Socket.IO push "task assigned to you" events? | Open. Decides whether stream mode (§3.5) is ever built. |
 
 ## 9. Out of scope (for now)
