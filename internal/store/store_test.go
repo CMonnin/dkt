@@ -3,6 +3,8 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -85,7 +87,24 @@ func TestConfigRoundTripKeepsDefaults(t *testing.T) {
 	if err := SaveConfig(dir, cfg); err != nil {
 		t.Fatal(err)
 	}
-	if got, _, _ := LoadConfig(dir); got != cfg {
+	if got, _, _ := LoadConfig(dir); !reflect.DeepEqual(got, cfg) {
 		t.Fatalf("round trip: %+v != %+v", got, cfg)
+	}
+}
+
+func TestConfigInboxPlugins(t *testing.T) {
+	dir := t.TempDir()
+	if cfg, _, _ := LoadConfig(dir); len(cfg.Inbox) != 0 {
+		t.Fatalf("default inbox = %v, want none", cfg.Inbox)
+	}
+	if err := os.WriteFile(ConfigPath(dir), []byte("inbox = [\"gh\", \"worklenz\"]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _, err := LoadConfig(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(cfg.Inbox, ","); got != "gh,worklenz" {
+		t.Fatalf("inbox = %v, want [gh worklenz]", cfg.Inbox)
 	}
 }

@@ -8,6 +8,10 @@ type keyMap struct {
 	Tags, Note, Editor, Search, Category          key.Binding
 	Open, Rename, Describe, Archive               key.Binding
 	Keep, KeepAll, Reopen, Sync, Esc, Help, Quit  key.Binding
+	Inbox                                         key.Binding
+
+	// Help-only entries for the inbox screen.
+	ItemTask, ItemBacklog, ItemEdit, Postpone, OpenItem, ReopenTask, LeaveInbox key.Binding
 }
 
 func bind(help, desc string, keys ...string) key.Binding {
@@ -47,6 +51,15 @@ func newKeys() keyMap {
 		Keep:    bind("k", "keep leftover", "k"),
 		KeepAll: bind("esc", "keep all", "esc"),
 		Reopen:  bind("x", "reopen", "x"),
+
+		Inbox:       bind("I", "inbox", "I"),
+		ItemTask:    bind("t", "task", "t"),
+		ItemBacklog: bind("b", "backlog", "b"),
+		ItemEdit:    bind("T/B", "edit title first", "T", "B"),
+		Postpone:    bind("z", "later", "z"),
+		OpenItem:    bind("o", "open", "o"),
+		ReopenTask:  bind("r", "reopen task", "r"),
+		LeaveInbox:  bind("esc", "to week", "esc"),
 
 		Sync: bind("R", "sync", "R"),
 		Esc:  bind("esc", "clear filter", "esc"),

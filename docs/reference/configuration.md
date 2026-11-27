@@ -27,6 +27,7 @@ machine_id = "b12ec4e2"
 | `meeting_time` | `"15:00"` | Local time of the meeting, `HH:MM`, 24-hour. |
 | `default_category` | `"work"` | Category for new inbox tasks and new projects: `"work"` or `"personal"`. |
 | `machine_id` | (random) | 8 hex characters. It is set by `init`. Do not change it. |
+| `inbox` | `[]` | Plugins whose inbox the TUI polls, by name: `inbox = ["gh"]` polls `dkt-gh`. See the [plugin protocol](plugin-protocol.md). |
 
 The meeting day and time set the default [export window](cli.md#export).
 

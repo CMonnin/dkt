@@ -125,6 +125,13 @@ func (s *State) applyTaskSet(t *Task, op Op) {
 		t.WeekAddedAt = decTime(op.Value)
 	case "completed_at":
 		t.CompletedAt = decTime(op.Value)
+	default:
+		if k, ok := strings.CutPrefix(op.Field, "x."); ok {
+			if t.ext == nil {
+				t.ext = map[string]string{}
+			}
+			t.ext[k] = decStr(op.Value)
+		}
 	}
 }
 
@@ -138,6 +145,13 @@ func (s *State) applyProjectSet(p *Project, op Op) {
 		p.Description = decStr(op.Value)
 	case "archived":
 		p.Archived = decBool(op.Value)
+	default:
+		if k, ok := strings.CutPrefix(op.Field, "x."); ok {
+			if p.ext == nil {
+				p.ext = map[string]string{}
+			}
+			p.ext[k] = decStr(op.Value)
+		}
 	}
 }
 

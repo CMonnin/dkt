@@ -7,8 +7,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -18,6 +21,7 @@ import (
 
 	"github.com/CMonnin/dkt/internal/app"
 	"github.com/CMonnin/dkt/internal/core"
+	"github.com/CMonnin/dkt/internal/plugin"
 	"github.com/CMonnin/dkt/internal/selfupdate"
 	"github.com/CMonnin/dkt/internal/session"
 )
@@ -57,6 +61,12 @@ func Run(args []string) int {
 		switch args[0] {
 		case "-h", "--help", "help":
 			fmt.Print(usage)
+			if names := pluginNames(); len(names) > 0 {
+				fmt.Printf("\nPlugins (%s-<name> on PATH):\n", app.Name)
+				for _, n := range names {
+					fmt.Println("  " + n)
+				}
+			}
 			return 0
 		case "-v", "--version", "version":
 			fmt.Println(app.Name, app.Version)
@@ -77,6 +87,9 @@ func Run(args []string) int {
 	if len(args) > 0 {
 		var ok bool
 		if h, ok = handlers[args[0]]; !ok {
+			if path, err := exec.LookPath(app.Name + "-" + args[0]); err == nil {
+				return runPlugin(path, args[1:])
+			}
 			fmt.Fprintf(os.Stderr, "%s: unknown command %q\n\n%s", app.Name, args[0], usage)
 			return 2
 		}
@@ -102,6 +115,38 @@ func Run(args []string) int {
 	err = h(c, args[1:])
 	if c.committed {
 		backgroundPush()
+	}
+	return exit(err)
+}
+
+// pluginNames lists the executable dkt-<name> programs on PATH, sorted and
+// without duplicates. It never runs them.
+func pluginNames() []string {
+	prefix := app.Name + "-"
+	seen := map[string]bool{}
+	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
+		entries, _ := os.ReadDir(dir)
+		for _, e := range entries {
+			name, ok := strings.CutPrefix(e.Name(), prefix)
+			if !ok || name == "" || seen[name] {
+				continue
+			}
+			if info, err := os.Stat(filepath.Join(dir, e.Name())); err == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
+				seen[name] = true
+			}
+		}
+	}
+	return slices.Sorted(maps.Keys(seen))
+}
+
+// runPlugin runs an external dkt-<name> program attached to the terminal.
+func runPlugin(path string, args []string) int {
+	cmd := exec.Command(path, args...)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	cmd.Env = plugin.Environ()
+	err := cmd.Run()
+	if ee, ok := errors.AsType[*exec.ExitError](err); ok {
+		return ee.ExitCode() // the plugin has already reported its own error
 	}
 	return exit(err)
 }
