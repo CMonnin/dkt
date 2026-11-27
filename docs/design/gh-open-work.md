@@ -1,6 +1,6 @@
 # Design: open GitHub work in the dkt inbox, and hiding items
 
-**Status:** agreed, not implemented
+**Status:** built on `feat/open-work` in both repos, not merged
 **Date:** 2026-11-27
 **Builds on:** [GitHub notifications in dkt](gh-notifications.md) (the plugin contract, `dkt-gh`, the TUI inbox)
 **Repos:** [CMonnin/dkt](https://github.com/CMonnin/dkt) · [CMonnin/dkt-gh](https://github.com/CMonnin/dkt-gh)
@@ -199,6 +199,7 @@ Checked on 2026-11-27, read-only, with `gh`'s OAuth token (scopes `repo`, `read:
 | Does `/search/issues` send an `ETag`, or answer `If-None-Match` with `304`? | **No.** No `ETag` header, and the conditional request returned `200`, costing a request. |
 | What's the search rate limit? | 30 a minute (`X-RateLimit-Resource: search`), separate from the core limit. |
 | Do the queries work with this token? | Yes: `assignee:@me` returned 16; `user-review-requested:@me` and `review-requested:@me` returned 0. |
+| What does the built `dkt-gh inbox` give on the owner's account? | 43 owed items, each once (16 assigned, 27 authored), alongside 0 unread notifications. Rerunning with the cursor gave `unchanged` without searching. The output, replayed through dkt's TUI, showed all 43 with `h` offered and no `d`. |
 | Is an assignment always also a notification? | *Unverified.* Usually (reason `assign`), but not when you assign yourself. That's one reason the searches exist. |
 | Do search results include archived repos? | Excluded with `archived:false`. *Unverified* that this covers repos you lost access to. |
 
