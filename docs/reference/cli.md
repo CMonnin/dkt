@@ -6,7 +6,7 @@ dkt [command] [arguments] [flags]
 
 With no command, `dkt` opens the [TUI](tui.md).
 
-Every command except `init`, `help`, `version` and `self-update` does these things in order:
+Every command except `init`, `help`, `version`, `self-update` and [plugins](#plugins) does these things in order:
 
 1. It pulls from the remote. An offline pull fails silently.
 2. It runs the command.
@@ -267,6 +267,27 @@ dkt help       # also -h, --help
 dkt version    # also -v, --version
 ```
 
+`help` ends with a list of the [plugins](#plugins) on `PATH`, if there are any. It lists them by name without running them.
+
+### Plugins
+
+```
+dkt <name> [arguments]
+```
+
+If `<name>` isn't a built-in command, dkt looks for a program called `dkt-<name>` on `PATH`. If it finds one, dkt runs it with the remaining arguments, attached to the terminal, and exits with its exit code. dkt doesn't pull or push around a plugin run. A built-in command always wins over a plugin with the same name.
+
+dkt adds these variables to the plugin's environment:
+
+| Variable | Value |
+|---|---|
+| `DKT_BIN` | Path of the running `dkt` |
+| `DKT_CONFIG_DIR` | The resolved config directory |
+| `DKT_DATA_DIR` | The resolved data directory |
+| `DKT_PLUGIN_API` | `1` |
+
+See the [plugin protocol](plugin-protocol.md) for what a plugin can do beyond its own commands.
+
 ## The edit form
 
 `dkt edit <ref>` with no flags and the TUI's `E` key open this form:
@@ -296,7 +317,9 @@ Any number of lines of note.
 |---|---|
 | 0 | Success, or help was shown. |
 | 1 | The command failed. |
-| 2 | Unknown command. |
+| 2 | Unknown command, and no plugin with that name. |
+
+After a [plugin](#plugins) runs, dkt exits with the plugin's exit code.
 
 ## See also
 
