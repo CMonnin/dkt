@@ -348,3 +348,18 @@ func TestInboxKeepsOnlyWebURLs(t *testing.T) {
 		t.Fatalf("URLs =\n%q\nwant\n%q", got, want)
 	}
 }
+
+func TestInboxReadsPersistent(t *testing.T) {
+	fake(t, `{"type":"hello","api":1,"plugin":"fake","stream":false}
+{"type":"item","id":"open:o/r#1","key":"o/r#1","persistent":true}
+{"type":"item","id":"2","key":"o/r#2"}
+{"type":"end","cursor":"c"}
+`)
+	l, err := Inbox(context.Background(), "fake", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !l.Items[0].Persistent || l.Items[1].Persistent {
+		t.Fatalf("Persistent = %v, %v; want true, false", l.Items[0].Persistent, l.Items[1].Persistent)
+	}
+}

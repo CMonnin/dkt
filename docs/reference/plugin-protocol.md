@@ -75,6 +75,7 @@ When nothing has changed since `--cursor`:
 | `url` | Web page for the item. |
 | `updated_at` | RFC 3339 time of the latest activity. |
 | `task` | Suggested task: `title`, `category`, `tags`, `note`, and `project` as `{key, name}`. |
+| `persistent` | Optional, default `false`. `true` for work the user owes (an issue assigned to them, say): the plugin lists it for as long as it's open at the source. See [Persistent items](#persistent-items). |
 
 #### When a run fails
 
@@ -93,6 +94,18 @@ dkt also cleans what it shows, because much of it is written by other people (an
 
 - It drops control characters, such as terminal escape sequences, from all text: labels, titles, tags, group and verb names, and error messages. In one-line fields, tabs and newlines become spaces. The suggested note keeps its tabs and newlines.
 - It keeps `url` only if it's an `http` or `https` URL with a host. Otherwise the item has no link.
+
+#### Persistent items
+
+A persistent item can't be dismissed, because it would be listed again on the next run. So dkt:
+
+- offers no plugin keys on it, unless it's shown under ↻ Updates because of new activity;
+- leaves it out of group verbs;
+- offers `h` to hide it, as well as `t`, `b`, `T`, `B`, `z` and `o`.
+
+Its `updated_at` is the latest activity the user hasn't seen. With no such activity, use the time the item was created, so that edits don't count as new activity.
+
+A persistent item with no notification behind it may have an `id` that `act` can't act on. `act` should then fail with a message saying so, and `linked` should succeed and do nothing.
 
 ### `dkt-<name> act <id> <verb>`
 

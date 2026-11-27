@@ -60,6 +60,10 @@ type Item struct {
 	URL       string        `json:"url"`
 	UpdatedAt time.Time     `json:"updated_at"`
 	Task      SuggestedTask `json:"task"`
+
+	// Persistent items stay listed while they're open at the source (owed
+	// work): they can't be dismissed, only made a task, hidden or postponed.
+	Persistent bool `json:"persistent"`
 }
 
 // SuggestedTask holds the task fields a plugin suggests for an item.
