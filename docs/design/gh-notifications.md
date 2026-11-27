@@ -238,18 +238,23 @@ GitHub marks a thread unread again when there's new activity. If the item is lin
 Optional. If the file is missing, these defaults apply:
 
 ```toml
-# Groups, top to bottom. Reasons not listed fall into the last group.
+# Groups, top to bottom. Reasons not listed go in the first group with no
+# reasons (here FYI), or in the last group if there's none.
 [[group]]
 name    = "Needs you"
 reasons = ["review_requested", "assign", "mention", "team_mention"]
 
 [[group]]
 name    = "Your stuff"
-reasons = ["author", "comment", "ci_activity"]
+reasons = ["author", "comment"]
 
 [[group]]
 name    = "FYI"
 reasons = []
+
+[[group]]
+name    = "CI"
+reasons = ["ci_activity"]
 ```
 
 There is deliberately no auto-dismiss option. It would contradict "triage them all".
