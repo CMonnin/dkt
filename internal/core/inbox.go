@@ -1,6 +1,10 @@
 package core
 
-import "time"
+import (
+	"errors"
+	"strings"
+	"time"
+)
 
 // ItemState says what the inbox does with a plugin item.
 type ItemState int
@@ -34,4 +38,92 @@ func (s *State) ClassifyItem(plugin, key string, updatedAt time.Time) (ItemState
 		return ItemUpdated, best
 	}
 	return ItemLinked, best
+}
+
+// LinkRequest is a plugin item to turn into a linked task, with the task
+// fields the plugin suggested.
+type LinkRequest struct {
+	Plugin, Key string // the item's plugin and stable key
+
+	Title, Note string
+	Category    Category
+	Tags        []string
+	Backlog     bool // false: on this week
+
+	ProjectKey, ProjectName string // suggested project; empty for none
+}
+
+// LinkItem returns the ops that make a task from a plugin item and link it,
+// and the new task's ID. Commit them together.
+func LinkItem(s *State, r LinkRequest, now time.Time) ([]Op, string, error) {
+	if r.Key == "" {
+		return nil, "", errors.New("item key is empty")
+	}
+	if err := checkExt(r.Plugin, "item", r.Key); err != nil {
+		return nil, "", err
+	}
+	in := NewTask{Title: r.Title, Category: r.Category, Tags: r.Tags, Backlog: r.Backlog}
+	var ops []Op
+	if r.ProjectKey != "" {
+		p := s.linkedProject(r.Plugin, r.ProjectKey)
+		if p == nil {
+			if p = s.projectNamed(r.ProjectName); p != nil {
+				link, err := SetProjectExt(p, r.Plugin, "project."+r.ProjectKey, "1", now)
+				if err != nil {
+					return nil, "", err
+				}
+				ops = append(ops, link...)
+			}
+		}
+		if p != nil {
+			in.Project, in.Category = p.ID, "" // project tasks take the project's category
+		}
+	}
+	newProject := ""
+	if r.ProjectKey != "" && in.Project == "" {
+		op, err := CreateProject(s, r.ProjectName, r.Category, "", now)
+		if err != nil {
+			return nil, "", err
+		}
+		link, err := SetProjectExt(&Project{ID: op.Target}, r.Plugin, "project."+r.ProjectKey, "1", now)
+		if err != nil {
+			return nil, "", err
+		}
+		ops = append(append(ops, op), link...)
+		newProject = op.Target
+	}
+	create, err := CreateTask(s, in, now)
+	if err != nil {
+		return nil, "", err
+	}
+	if newProject != "" { // CreateTask can't see a project made in this same batch
+		create.Task.Project = newProject
+	}
+	create.Task.Note = strings.TrimSpace(r.Note)
+	id := create.Target
+	return append(ops,
+		create,
+		setTask(now, id, "x."+r.Plugin+".item", r.Key),
+		setTask(now, id, "x."+r.Plugin+".linked_at", now.UTC().Format(time.RFC3339)),
+	), id, nil
+}
+
+// linkedProject is the non-archived project linked to a plugin's project key.
+func (s *State) linkedProject(plugin, key string) *Project {
+	for _, p := range s.SortedProjects(false) {
+		if p.Ext(plugin, "project."+key) != "" {
+			return p
+		}
+	}
+	return nil
+}
+
+// projectNamed is the non-archived project with this name, ignoring case.
+func (s *State) projectNamed(name string) *Project {
+	for _, p := range s.SortedProjects(false) {
+		if name != "" && strings.EqualFold(p.Name, strings.TrimSpace(name)) {
+			return p
+		}
+	}
+	return nil
 }
