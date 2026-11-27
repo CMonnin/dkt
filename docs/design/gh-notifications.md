@@ -130,7 +130,7 @@ Lists items to triage. `--cursor` is whatever the last successful run returned. 
 {"type":"groups","groups":[{"id":"needs-you","name":"Needs you"},{"id":"yours","name":"Your stuff"},{"id":"fyi","name":"FYI"}]}
 {"type":"verbs","verbs":[{"key":"d","label":"dismiss"},{"key":"u","label":"unsubscribe"}],"group_verbs":[{"key":"D","verb":"d","label":"dismiss group","confirm":true}]}
 {"type":"item","id":"27411703286","key":"CoBrALab/RABIES#533","group":"needs-you","label":"review","ref":"RABIES#533","title":"fix motion correction","url":"https://github.com/CoBrALab/RABIES/pull/533","updated_at":"2026-11-27T11:02:00Z","task":{"title":"Review: fix motion correction (RABIES#533)","category":"work","tags":["gh"],"note":"https://github.com/CoBrALab/RABIES/pull/533","project":{"key":"CoBrALab/RABIES","name":"RABIES"}}}
-{"type":"end","cursor":"Fri, 27 Nov 2026 11:02:00 GMT","poll_after_s":60}
+{"type":"end","cursor":"\"50a7407338ba387e\"","poll_after_s":60}
 ```
 
 Or, when nothing has changed since `--cursor`:
@@ -220,7 +220,7 @@ GitHub marks a thread unread again when there's new activity. If the item is lin
 
 | Use | Call |
 |---|---|
-| List unread | `GET /notifications` (unread only by default), all pages, following `Link`. Send `If-Modified-Since: <cursor>` when given a cursor. `304` → `unchanged`. `poll_after_s` comes from `X-Poll-Interval`, and `cursor` from `Last-Modified`. |
+| List unread | `GET /notifications` (unread only by default), all pages, following `Link`. Send `If-None-Match: <cursor>` when given a cursor. `304` → `unchanged`. `poll_after_s` comes from `X-Poll-Interval`, and `cursor` from the first page's `ETag`. Use `ETag`, not `Last-Modified`: see §8. |
 | Mark done | `DELETE /notifications/threads/{id}` |
 | Unsubscribe | `DELETE /notifications/threads/{id}/subscription` |
 
@@ -293,14 +293,18 @@ It's released with goreleaser, the same way as dkt, and installed next to `dkt` 
 
 ---
 
-## 8. To verify
+## 8. Verified facts and open questions
 
-| Question | Why it matters |
+Checked on 2026-11-27 with `curl` against the owner's account, marking one release notification done (`CoBrALab/RABIES` "Release 0.6.3").
+
+| Question | Result |
 |---|---|
-| Does a thread keep its thread ID when it comes back after being marked done? | Not critical, since links use the subject key, but `act` and `linked` take the thread ID. |
-| Does `If-Modified-Since` return `304` on `/notifications`? In a quick test through `gh api` it returned `200`, possibly because of `gh`. | If not, drop `unchanged` and always send the full list. Nothing else changes. |
-| Does `Last-Modified` change after we mark a thread done? | Otherwise, a `304` right after triage could hide changes. |
-| (Worklenz, later) Does Worklenz's Socket.IO push "task assigned to you" events? | Decides whether stream mode (§3.5) is ever built. |
+| Does `If-Modified-Since` give `304` on `/notifications`? | **No.** It always returns `200`, and each call costs a rate-limit point. |
+| Does `ETag` / `If-None-Match` give `304`? | **Yes**, and a `304` doesn't count against the rate limit. The plugin polls this way (§5.1). |
+| Does `Last-Modified` change after a thread is marked done? | **No.** It stayed the same, so it can't be used as a cursor. *Unverified:* that the `ETag` changes after mark done. It looks like a hash of the response body, so it should. |
+| What does `DELETE /notifications/threads/{id}` (mark done) do? | `204`. The thread leaves the unread list, but the thread still exists: `GET /notifications/threads/{id}` returns it with `unread: false`, and it still appears with `?all=true`. |
+| Does a thread keep its ID when it comes back after mark done? | **Not tested.** A release never gets new activity. The thread surviving mark done makes reuse very likely. Links use the subject key anyway, so nothing depends on it. |
+| (Worklenz, later) Does Worklenz's Socket.IO push "task assigned to you" events? | Open. Decides whether stream mode (§3.5) is ever built. |
 
 ## 9. Out of scope (for now)
 
