@@ -88,12 +88,20 @@ func (s *State) BacklogTasks() []*Task {
 	return s.SortedTasks(func(t *Task) bool { return !t.OnWeek && t.Status.Open() })
 }
 
-// HistoryTasks: done and dropped, newest first.
+// HistoryTasks: done and dropped, newest first. Hidden tasks aren't
+// history: they're on the Hidden tab.
 func (s *State) HistoryTasks() []*Task {
-	out := s.SortedTasks(func(t *Task) bool { return !t.Status.Open() })
+	out := s.SortedTasks(func(t *Task) bool { return !t.Status.Open() && !t.Hidden() })
 	slices.SortStableFunc(out, func(a, b *Task) int {
 		return completedAt(b).Compare(completedAt(a))
 	})
+	return out
+}
+
+// HiddenTasks: tasks whose plugin item the user hid, newest hide first.
+func (s *State) HiddenTasks() []*Task {
+	out := s.SortedTasks(func(t *Task) bool { return t.Hidden() })
+	slices.SortStableFunc(out, func(a, b *Task) int { return b.HiddenAt().Compare(a.HiddenAt()) })
 	return out
 }
 

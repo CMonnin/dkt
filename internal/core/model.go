@@ -70,6 +70,30 @@ func (t *Task) Ext(plugin, key string) string {
 	return t.ext[plugin+"."+key]
 }
 
+// Hidden is true when any plugin's x.<plugin>.hidden_at is set: the user
+// hid the item behind this task (see docs/design/gh-open-work.md).
+func (t *Task) Hidden() bool {
+	for k, v := range t.ext {
+		if strings.HasSuffix(k, ".hidden_at") && v != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// HiddenAt is the latest x.<plugin>.hidden_at, or zero.
+func (t *Task) HiddenAt() time.Time {
+	var latest time.Time
+	for k, v := range t.ext {
+		if strings.HasSuffix(k, ".hidden_at") {
+			if at, err := time.Parse(time.RFC3339, v); err == nil && at.After(latest) {
+				latest = at
+			}
+		}
+	}
+	return latest
+}
+
 func (t *Task) HasTag(tag string) bool {
 	_, ok := slices.BinarySearch(t.Tags, tag)
 	return ok

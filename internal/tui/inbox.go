@@ -84,7 +84,7 @@ func (ib *inbox) rows(st *core.State) []row {
 			if ib.later[itemKey(name, it.ID)] {
 				continue
 			}
-			switch state, t := st.ClassifyItem(name, it.Key, it.UpdatedAt); state {
+			switch state, t := st.ClassifyItem(name, it.Key, it.UpdatedAt, it.Persistent); state {
 			case core.ItemUpdated:
 				updates = append(updates, row{inbox: &entry{plugin: name, item: it, task: t}})
 			case core.ItemNew:
@@ -127,7 +127,7 @@ func (ib *inbox) relinks(st *core.State) []entry {
 	var out []entry
 	for _, name := range ib.plugins {
 		for _, it := range ib.lists[name].Items {
-			if state, t := st.ClassifyItem(name, it.Key, it.UpdatedAt); state == core.ItemLinked {
+			if state, t := st.ClassifyItem(name, it.Key, it.UpdatedAt, it.Persistent); state == core.ItemLinked {
 				out = append(out, entry{plugin: name, item: it, task: t})
 			}
 		}
