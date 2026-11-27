@@ -61,7 +61,13 @@ type Task struct {
 	OnWeek        bool
 	WeekAddedAt   *time.Time
 	CreatedAt     time.Time
-	CompletedAt   *time.Time // set when done or dropped
+	CompletedAt   *time.Time        // set when done or dropped
+	ext           map[string]string // hidden plugin fields, keyed "<plugin>.<key>"
+}
+
+// Ext returns the hidden field x.<plugin>.<key>, or "" if unset.
+func (t *Task) Ext(plugin, key string) string {
+	return t.ext[plugin+"."+key]
 }
 
 func (t *Task) HasTag(tag string) bool {
@@ -88,4 +94,10 @@ type Project struct {
 	Description string
 	Archived    bool
 	CreatedAt   time.Time
+	ext         map[string]string // hidden plugin fields, keyed "<plugin>.<key>"
+}
+
+// Ext returns the hidden field x.<plugin>.<key>, or "" if unset.
+func (p *Project) Ext(plugin, key string) string {
+	return p.ext[plugin+"."+key]
 }

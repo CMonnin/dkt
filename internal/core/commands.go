@@ -99,6 +99,14 @@ func SetTitle(t *Task, title string, now time.Time) ([]Op, error) {
 	return []Op{setTask(now, t.ID, "title", title)}, nil
 }
 
+// SetTaskExt sets the hidden field x.<plugin>.<key>; an empty value clears it.
+func SetTaskExt(t *Task, plugin, key, value string, now time.Time) ([]Op, error) {
+	if err := checkExt(plugin, key, value); err != nil {
+		return nil, err
+	}
+	return []Op{setTask(now, t.ID, "x."+plugin+"."+key, value)}, nil
+}
+
 func SetNote(t *Task, note string, now time.Time) []Op {
 	return []Op{setTask(now, t.ID, "note", strings.TrimSpace(note))}
 }
@@ -164,6 +172,14 @@ func DescribeProject(p *Project, desc string, now time.Time) []Op {
 	return []Op{setProject(now, p.ID, "description", strings.TrimSpace(desc))}
 }
 
+// SetProjectExt sets the hidden field x.<plugin>.<key>; an empty value clears it.
+func SetProjectExt(p *Project, plugin, key, value string, now time.Time) ([]Op, error) {
+	if err := checkExt(plugin, key, value); err != nil {
+		return nil, err
+	}
+	return []Op{setProject(now, p.ID, "x."+plugin+"."+key, value)}, nil
+}
+
 func SetProjectCategory(p *Project, c Category, now time.Time) []Op {
 	return []Op{setProject(now, p.ID, "category", c)}
 }
@@ -185,6 +201,20 @@ func checkProjectName(s *State, name, selfID string) error {
 		if p.ID != selfID && !p.Archived && strings.EqualFold(p.Name, name) {
 			return fmt.Errorf("project %q already exists", p.Name)
 		}
+	}
+	return nil
+}
+
+// checkExt validates a hidden field's plugin name, key and value.
+func checkExt(plugin, key, value string) error {
+	if plugin == "" || strings.Trim(plugin, "abcdefghijklmnopqrstuvwxyz0123456789-") != "" {
+		return fmt.Errorf("plugin name %q: use only a-z, 0-9 and -", plugin)
+	}
+	if key == "" {
+		return errors.New("hidden field key is empty")
+	}
+	if strings.ContainsAny(value, "\r\n") {
+		return errors.New("hidden field value contains a newline")
 	}
 	return nil
 }
