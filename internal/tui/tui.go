@@ -33,6 +33,7 @@ type row struct {
 	header  string
 	task    *core.Task
 	project *core.Project
+	inbox   *entry
 }
 
 func (r row) selectable() bool { return r.header == "" }
@@ -43,6 +44,8 @@ func (r row) id() string {
 		return r.task.ID
 	case r.project != nil:
 		return r.project.ID
+	case r.inbox != nil:
+		return itemKey(r.inbox.plugin, r.inbox.item.ID)
 	}
 	return ""
 }
