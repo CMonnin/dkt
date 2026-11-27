@@ -60,6 +60,7 @@ Each line of the file is one **op**, as a JSON object. dkt only appends to this 
 | `on_week` | boolean |
 | `week_added_at` | RFC 3339 |
 | `completed_at` | RFC 3339, or `null` |
+| `x.<plugin>.<key>` | string; see [Hidden fields](#hidden-fields) |
 
 ### `project.create` object
 
@@ -77,6 +78,23 @@ Each line of the file is one **op**, as a JSON object. dkt only appends to this 
 | `category` | `"work"` or `"personal"` |
 | `description` | string |
 | `archived` | boolean |
+| `x.<plugin>.<key>` | string; see [Hidden fields](#hidden-fields) |
+
+### Hidden fields
+
+A `task.set` or `project.set` whose `field` starts with `x.` sets a hidden field: data that a plugin attaches to a task or project. dkt stores these fields but doesn't show them in listings or the edit form.
+
+- `<plugin>` is the plugin's name: lowercase letters, digits and `-`.
+- `<key>` is any non-empty string, and may contain `.` and `/`.
+- The value is a string with no newline. An empty string clears the field.
+
+dkt writes these fields. Plugins never do. Example:
+
+```json
+{"id":"01M3A3NMDX...","ts":"2026-11-27T09:01:00Z","host":"laptop","type":"task.set","target":"01M3A3NMCV...","field":"x.gh.item","value":"CoBrALab/RABIES#533"}
+```
+
+Versions of dkt from before hidden fields ignore them, because they skip any `*.set` field they don't know.
 
 ## Examples
 
