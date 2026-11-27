@@ -12,6 +12,7 @@ type keyMap struct {
 
 	// Help-only entries for the inbox screen.
 	ItemTask, ItemBacklog, ItemEdit, Postpone, OpenItem, ReopenTask, LeaveInbox key.Binding
+	Hide, MakeTask, Unhide                                                      key.Binding
 }
 
 func bind(help, desc string, keys ...string) key.Binding {
@@ -26,7 +27,7 @@ func newKeys() keyMap {
 		Bottom:  bind("G", "bottom", "G", "end"),
 		NextTab: bind("tab/l", "next tab", "tab", "l", "right"),
 		PrevTab: bind("S-tab/h", "prev tab", "shift+tab", "h", "left"),
-		Tabs:    bind("1-4", "tab", "1", "2", "3", "4"),
+		Tabs:    bind("1-5", "tab", "1", "2", "3", "4", "5"),
 
 		Add:   bind("a", "add", "a"),
 		Done:  bind("x", "done", "x"),
@@ -59,6 +60,9 @@ func newKeys() keyMap {
 		Postpone:    bind("z", "later", "z"),
 		OpenItem:    bind("o", "open", "o"),
 		ReopenTask:  bind("r", "reopen task", "r"),
+		Hide:        bind("h", "hide", "h"),
+		MakeTask:    bind("r", "make it a task", "r"),
+		Unhide:      bind("u", "back to inbox", "u"),
 		LeaveInbox:  bind("esc", "to week", "esc"),
 
 		Sync: bind("R", "sync", "R"),

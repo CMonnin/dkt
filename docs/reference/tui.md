@@ -19,7 +19,8 @@ Task rows show the status box, the title, the project (not on Backlog), the tags
 | `1` | Week | Open tasks on this week, plus tasks marked done since Monday 00:00 | Work, Personal |
 | `2` | Backlog | Open tasks not on this week | Inbox, then projects |
 | `3` | Projects | Projects that are not archived | None |
-| `4` | History | Done and dropped tasks, newest first | None |
+| `4` | History | Done and dropped tasks, newest first. Not hidden ones. | None |
+| `5` | Hidden | Tasks whose inbox item you hid, newest hide first | None |
 
 When you change tabs, the search clears. The project filter clears unless the new tab is Backlog.
 
@@ -35,7 +36,7 @@ When you change tabs, the search clears. The project filter clears unless the ne
 | `G`, `End` | Last row |
 | `tab`, `l`, `→` | Next tab |
 | `shift+tab`, `h`, `←` | Previous tab |
-| `1` to `4` | Go to that tab |
+| `1` to `5` | Go to that tab |
 | `/` | Search (not on Projects) |
 | `esc` | Clear the search and the project filter |
 | `R` | Pull, push and reload |
@@ -108,10 +109,14 @@ FYI
   [subscribed] RABIES  v0.5.2 released  1d
 ```
 
-- **↻ Updates:** new activity on items that are already tasks.
+- **↻ Updates:** items that are already tasks and need a look:
+  - *new activity*: activity since the task was made;
+  - *task closed, still open*: owed work whose task you closed, while the item is still open at the source;
+  - *hidden · new activity*: activity on an item you hid, since you hid it.
 - Then the plugin's groups, in its order. Items in a group the plugin didn't declare go under **Other**. With several plugins, each header starts with the plugin's name.
 - Within a group, newest first.
 - Items that are already tasks, with nothing new, aren't shown.
+- **Owed work** (an issue assigned to you, say) stays in the inbox until it's a task or hidden. It can't be dismissed, because the plugin would list it again.
 
 ### Inbox keys
 
@@ -122,12 +127,23 @@ FYI
 | `T`, `B` | The same, but edit the title first. |
 | `z` | Hide the item until the TUI is next opened. |
 | `o` | Open the item's web page. |
-| `r` | On a ↻ item whose task is closed: reopen the task. |
+| `r` | On a ↻ item whose task is closed: reopen the task. On ↻ *hidden · new activity*: make it a real task, in the backlog. |
+| `h` | Owed work only: hide it. It moves to the Hidden tab and comes back under ↻ only with new activity. |
 | `esc` | Go to the Week tab. |
 
 `t`, `b`, `T` and `B` aren't offered on ↻ items, so the same thing can't become two tasks.
 
-The plugin adds its own keys, shown in the help line. For `dkt-gh`: `d` dismiss, `u` unsubscribe, and `D` dismiss the whole group (asks `[y/N]`). If a plugin key fails, the item stays and the reason is shown.
+The plugin adds its own keys, shown in the help line. For `dkt-gh`: `d` dismiss, `u` unsubscribe, and `D` dismiss the whole group (asks `[y/N]`). If a plugin key fails, the item stays and the reason is shown. Plugin keys aren't offered on owed work unless it's under ↻ because of new activity, and `D` leaves owed work out.
+
+### Hidden tab
+
+| Key | Action |
+|---|---|
+| `r` | Make it a real task: todo, in the backlog, no longer hidden. |
+| `u` | Back to the inbox, as a new item. The hidden task stays in History as dropped. |
+| `o` | Open the item's web page. |
+
+A row shows *no longer open* when the plugin's latest list doesn't have the item (closed, or not yours any more). Other task keys don't work on this tab.
 
 A task made from an item gets the plugin's suggested title, category, tags and note. It goes in the project linked to the item's project, or else in a project with the suggested name, or else in a new one.
 

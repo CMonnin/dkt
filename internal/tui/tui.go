@@ -26,9 +26,10 @@ const (
 	tabBacklog
 	tabProjects
 	tabHistory
+	tabHidden
 )
 
-var tabNames = []string{"Week", "Backlog", "Projects", "History"}
+var tabNames = []string{"Week", "Backlog", "Projects", "History", "Hidden"}
 
 type row struct {
 	header  string
@@ -319,6 +320,10 @@ func (m *Model) buildRows() {
 		for _, t := range m.filter(m.st.HistoryTasks()) {
 			rows = append(rows, row{task: t})
 		}
+	case m.tab == tabHidden:
+		for _, t := range m.filter(m.st.HiddenTasks()) {
+			rows = append(rows, row{task: t})
+		}
 	}
 	m.rows = rows
 
@@ -447,6 +452,15 @@ func (m *Model) updateNormal(msg tea.KeyMsg) tea.Cmd {
 		}
 	}
 
+	if m.tab == tabHidden && !m.inInbox {
+		if cmd, ok := m.updateHidden(msg); ok {
+			return cmd
+		}
+		if !isNavKey(k, msg) && !key.Matches(msg, k.Search) && !key.Matches(msg, k.Esc) && !key.Matches(msg, k.Inbox) {
+			return nil
+		}
+	}
+
 	// Leftover triage on the Week tab takes precedence over navigation.
 	if m.tab == tabWeek && !m.inInbox {
 		if t != nil && m.isLeftover(t) {
@@ -482,9 +496,9 @@ func (m *Model) updateNormal(msg tea.KeyMsg) tea.Cmd {
 	case key.Matches(msg, k.Tabs):
 		m.setTab(tab(msg.String()[0] - '1'))
 	case key.Matches(msg, k.NextTab):
-		m.setTab((m.tab + 1) % 4)
+		m.setTab((m.tab + 1) % tab(len(tabNames)))
 	case key.Matches(msg, k.PrevTab):
-		m.setTab((m.tab + 3) % 4)
+		m.setTab((m.tab + tab(len(tabNames)) - 1) % tab(len(tabNames)))
 	case key.Matches(msg, k.Down):
 		m.move(1)
 	case key.Matches(msg, k.Up):

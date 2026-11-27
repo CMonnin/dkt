@@ -259,7 +259,7 @@ func clean(s string, multiline bool) string {
 
 func cleanItem(it Item) Item {
 	it.Label, it.Ref, it.Title = line(it.Label), line(it.Ref), line(it.Title)
-	it.URL = webURL(it.URL)
+	it.URL = WebURL(it.URL)
 	t := &it.Task
 	t.Title, t.Category, t.Note = line(t.Title), line(t.Category), clean(t.Note, true)
 	tags := make([]string, len(t.Tags))
@@ -275,10 +275,10 @@ func cleanItem(it Item) Item {
 	return it
 }
 
-// webURL is u if it is an http or https URL with a host, else "". The TUI
+// WebURL is u if it is an http or https URL with a host, else "". The TUI
 // hands it to the system's URL opener, which must never get a file path,
 // another scheme, or something it could read as an option.
-func webURL(u string) string {
+func WebURL(u string) string {
 	p, err := url.Parse(u)
 	if err != nil || (p.Scheme != "http" && p.Scheme != "https") || p.Host == "" || strings.HasPrefix(u, "-") {
 		return ""
