@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/CMonnin/dkt/internal/core"
+	"github.com/CMonnin/dkt/internal/plugin"
 )
 
 var (
@@ -196,6 +197,9 @@ func (m *Model) renderTask(t *core.Task) string {
 	}
 
 	var b strings.Builder
+	if m.tab == tabHidden {
+		return m.renderHidden(t)
+	}
 	if m.tab == tabHistory {
 		when := t.CreatedAt
 		if t.CompletedAt != nil {
@@ -234,8 +238,26 @@ func (m *Model) shortHelp() []key.Binding {
 		return []key.Binding{k.Add, k.Week, k.Done, k.Tags, k.Editor, k.Search, k.Esc, k.Help, k.Quit}
 	case tabProjects:
 		return []key.Binding{k.Add, k.Open, k.Rename, k.Describe, k.Category, k.Archive, k.Help, k.Quit}
+	case tabHidden:
+		return []key.Binding{k.MakeTask, k.Unhide, k.OpenItem, k.Search, k.Inbox, k.Help, k.Quit}
 	}
 	return []key.Binding{k.Reopen, k.Search, k.Editor, k.Help, k.Quit}
+}
+
+// renderHidden is a Hidden tab row: title, plugin ref, when it was hidden,
+// and whether the item is still open at the source.
+func (m *Model) renderHidden(t *core.Task) string {
+	name, key := m.taskPlugin(t)
+	title, ref := plugin.Line(t.Title), plugin.Line(name+" "+key) // the key came from the plugin
+	line := title
+	if name != "" {
+		line += styleFaint.Render("  " + ref)
+	}
+	line += styleFaint.Render("  hidden " + age(m.now().Sub(t.HiddenAt())) + " ago")
+	if name != "" && !m.ib.stillListed(name, key) {
+		return styleFaint.Render(title+"  "+ref) + styleFaint.Render("  no longer open")
+	}
+	return line
 }
 
 func (m *Model) fullHelp() [][]key.Binding {
@@ -257,17 +279,26 @@ func (m *Model) inboxHelp() []key.Binding {
 		return []key.Binding{k.LeaveInbox, k.Help, k.Quit}
 	}
 	var out []key.Binding
-	if r.inbox.task == nil {
+	e := r.inbox
+	switch {
+	case e.task == nil:
 		out = append(out, k.ItemTask, k.ItemBacklog, k.ItemEdit)
-	} else if !r.inbox.task.Status.Open() {
+	case e.state == core.ItemHiddenActivity:
+		out = append(out, k.MakeTask)
+	case !e.task.Status.Open():
 		out = append(out, k.ReopenTask)
 	}
-	out = append(out, k.Postpone, k.OpenItem)
-	for _, v := range m.ib.verbs(r.inbox.plugin) {
-		out = append(out, bind(v.Key, v.Label, v.Key))
+	if e.item.Persistent {
+		out = append(out, k.Hide)
 	}
-	for _, v := range m.ib.groupVerbs(r.inbox.plugin) {
-		out = append(out, bind(v.Key, v.Label, v.Key))
+	out = append(out, k.Postpone, k.OpenItem)
+	if e.dismissible() {
+		for _, v := range m.ib.verbs(e.plugin) {
+			out = append(out, bind(v.Key, v.Label, v.Key))
+		}
+		for _, v := range m.ib.groupVerbs(e.plugin) {
+			out = append(out, bind(v.Key, v.Label, v.Key))
+		}
 	}
 	return append(out, k.LeaveInbox, k.Help, k.Quit)
 }

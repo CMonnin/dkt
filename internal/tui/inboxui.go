@@ -161,11 +161,20 @@ func (m *Model) updateInbox(msg tea.KeyMsg) (tea.Cmd, bool) {
 		}
 		return openURL(e.item.URL), true
 	case "r":
-		if update && !e.task.Status.Open() {
+		switch {
+		case e.state == core.ItemHiddenActivity:
+			m.flash = "now a task, in the backlog: " + e.task.Title
+			return m.apply(core.TaskFromHidden(e.task, e.plugin, m.now()), "unhide as task: "+e.task.Title), true
+		case update && !e.task.Status.Open():
 			m.flash = "reopened: " + e.task.Title
 			return m.apply(core.Reopen(e.task, m.now()), "reopen: "+e.task.Title), true
 		}
 		return nil, true
+	case "h":
+		return m.hideItem(e), true
+	}
+	if !e.dismissible() {
+		return nil, false
 	}
 	for _, v := range m.ib.verbs(e.plugin) {
 		if v.Key == key {
@@ -185,8 +194,8 @@ func (m *Model) updateInbox(msg tea.KeyMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// linkItem makes a linked task from an item, then tells the plugin.
-func (m *Model) linkItem(e entry, title string, backlog bool) tea.Cmd {
+// linkRequest is what LinkItem and HideItem need for an entry.
+func (m *Model) linkRequest(e entry, title string, backlog bool) core.LinkRequest {
 	sug := e.item.Task
 	cat, err := core.ParseCategory(sug.Category)
 	if err != nil {
@@ -199,7 +208,12 @@ func (m *Model) linkItem(e entry, title string, backlog bool) tea.Cmd {
 	if sug.Project != nil {
 		r.ProjectKey, r.ProjectName = sug.Project.Key, sug.Project.Name
 	}
-	ops, id, err := core.LinkItem(m.st, r, m.now())
+	return r
+}
+
+// linkItem makes a linked task from an item, then tells the plugin.
+func (m *Model) linkItem(e entry, title string, backlog bool) tea.Cmd {
+	ops, id, err := core.LinkItem(m.st, m.linkRequest(e, title, backlog), m.now())
 	if err != nil {
 		m.flash = err.Error()
 		return nil
@@ -217,7 +231,8 @@ func (m *Model) linkItem(e entry, title string, backlog bool) tea.Cmd {
 	return cmd
 }
 
-// cursorGroup is the items in the group the cursor is in.
+// cursorGroup is the items in the group the cursor is in that a group
+// verb can act on: owed work is left out.
 func (m *Model) cursorGroup() []entry {
 	start := m.cursor
 	for start > 0 && m.rows[start].header == "" {
@@ -225,11 +240,31 @@ func (m *Model) cursorGroup() []entry {
 	}
 	var out []entry
 	for i := start + 1; i < len(m.rows) && m.rows[i].header == ""; i++ {
-		if m.rows[i].inbox != nil {
+		if m.rows[i].inbox != nil && m.rows[i].inbox.dismissible() {
 			out = append(out, *m.rows[i].inbox)
 		}
 	}
 	return out
+}
+
+// hideItem hides owed work: a hidden task if it has none, else its task
+// hidden, or hidden again from now.
+func (m *Model) hideItem(e entry) tea.Cmd {
+	if !e.item.Persistent {
+		m.flash = "only open work is hidden; dismiss this one instead"
+		return nil
+	}
+	if e.task != nil {
+		m.flash = "hidden: " + e.task.Title
+		return m.apply(core.HideTask(e.task, e.plugin, m.now()), "hide: "+e.task.Title)
+	}
+	ops, _, err := core.HideItem(m.st, m.linkRequest(e, e.item.Task.Title, true), m.now())
+	if err != nil {
+		m.flash = err.Error()
+		return nil
+	}
+	m.flash = "hidden: " + e.item.Title
+	return m.apply(ops, "hide: "+e.item.Title)
 }
 
 func (m *Model) actGroup(group []entry, verb string) tea.Cmd {
@@ -255,9 +290,14 @@ func openURL(url string) tea.Cmd {
 func renderItem(e *entry, now time.Time) string {
 	it := e.item
 	var b strings.Builder
-	if e.task != nil {
+	switch {
+	case e.state == core.ItemClosedOpen:
+		b.WriteString(it.Ref + "  " + styleWarn.Render("task closed, still open") + styleFaint.Render(" · task: ") + e.task.Title)
+	case e.state == core.ItemHiddenActivity:
+		b.WriteString(it.Ref + "  " + styleFaint.Render("hidden · new activity · task: ") + e.task.Title)
+	case e.task != nil:
 		b.WriteString(it.Ref + "  " + styleFaint.Render("new activity · task: ") + e.task.Title)
-	} else {
+	default:
 		if it.Label != "" {
 			b.WriteString(styleTag.Render("["+it.Label+"]") + " ")
 		}
@@ -280,4 +320,53 @@ func age(d time.Duration) string {
 		return fmt.Sprintf("%dh", int(d.Hours()))
 	}
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
+}
+
+// updateHidden handles a key on the Hidden tab: r, u and o.
+func (m *Model) updateHidden(msg tea.KeyMsg) (tea.Cmd, bool) {
+	t := m.selectedTask()
+	if t == nil {
+		return nil, false
+	}
+	name, key := m.taskPlugin(t)
+	if name == "" && (msg.String() == "r" || msg.String() == "u") {
+		m.flash = "its plugin isn't in inbox = [...] in config.toml"
+		return nil, true
+	}
+	switch msg.String() {
+	case "r":
+		m.flash = "now a task, in the backlog: " + t.Title
+		return m.apply(core.TaskFromHidden(t, name, m.now()), "unhide as task: "+t.Title), true
+	case "u":
+		m.flash = "back in the inbox: " + t.Title
+		return m.apply(core.Unhide(t, name, m.now()), "unhide: "+t.Title), true
+	case "o":
+		if u := m.itemURL(name, key, t); u != "" {
+			return openURL(u), true
+		}
+		m.flash = "no link for this item"
+		return nil, true
+	}
+	return nil, false
+}
+
+// taskPlugin is the inbox plugin a hidden task's item came from, and its key.
+func (m *Model) taskPlugin(t *core.Task) (name, key string) {
+	for _, p := range m.ib.plugins {
+		if t.Ext(p, "hidden_at") != "" {
+			return p, t.Ext(p, "item")
+		}
+	}
+	return "", ""
+}
+
+// itemURL is the web page of a plugin item: from the latest list, or else
+// the task's note if it is a web URL (dkt-gh puts the URL there).
+func (m *Model) itemURL(name, key string, t *core.Task) string {
+	for _, it := range m.ib.lists[name].Items {
+		if it.Key == key && it.URL != "" {
+			return it.URL
+		}
+	}
+	return plugin.WebURL(strings.TrimSpace(t.Note))
 }

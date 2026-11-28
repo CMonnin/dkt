@@ -14,6 +14,14 @@ type entry struct {
 	plugin string
 	item   plugin.Item
 	task   *core.Task
+	state  core.ItemState
+}
+
+// dismissible is true when plugin keys make sense on the entry: always for
+// notifications, and for owed work only when it's here because of new
+// activity (dismissing marks that activity done; the item stays owed).
+func (e entry) dismissible() bool {
+	return !e.item.Persistent || e.state == core.ItemUpdated || e.state == core.ItemHiddenActivity
 }
 
 // inbox holds what the inbox plugins last reported. It is kept in memory
@@ -84,11 +92,11 @@ func (ib *inbox) rows(st *core.State) []row {
 			if ib.later[itemKey(name, it.ID)] {
 				continue
 			}
-			switch state, t := st.ClassifyItem(name, it.Key, it.UpdatedAt); state {
-			case core.ItemUpdated:
-				updates = append(updates, row{inbox: &entry{plugin: name, item: it, task: t}})
+			switch state, t := st.ClassifyItem(name, it.Key, it.UpdatedAt, it.Persistent); state {
+			case core.ItemUpdated, core.ItemClosedOpen, core.ItemHiddenActivity:
+				updates = append(updates, row{inbox: &entry{plugin: name, item: it, task: t, state: state}})
 			case core.ItemNew:
-				byGroup[it.Group] = append(byGroup[it.Group], row{inbox: &entry{plugin: name, item: it}})
+				byGroup[it.Group] = append(byGroup[it.Group], row{inbox: &entry{plugin: name, item: it, state: state}})
 			}
 		}
 		header := func(group string) string {
@@ -127,7 +135,7 @@ func (ib *inbox) relinks(st *core.State) []entry {
 	var out []entry
 	for _, name := range ib.plugins {
 		for _, it := range ib.lists[name].Items {
-			if state, t := st.ClassifyItem(name, it.Key, it.UpdatedAt); state == core.ItemLinked {
+			if state, t := st.ClassifyItem(name, it.Key, it.UpdatedAt, it.Persistent); state == core.ItemLinked {
 				out = append(out, entry{plugin: name, item: it, task: t})
 			}
 		}
@@ -154,4 +162,19 @@ func (ib *inbox) verbs(name string) []plugin.Verb {
 // groupVerbs are the plugin's keys for a whole group, without dkt's keys.
 func (ib *inbox) groupVerbs(name string) []plugin.GroupVerb {
 	return slices.DeleteFunc(slices.Clone(ib.lists[name].GroupVerbs), func(v plugin.GroupVerb) bool { return reservedKeys[v.Key] })
+}
+
+// stillListed is false only when the plugin's latest complete list doesn't
+// have the key: for a hidden task, the item is no longer open or owed.
+func (ib *inbox) stillListed(name, key string) bool {
+	l, ok := ib.lists[name]
+	if !ok {
+		return true // no list yet: don't claim it's gone
+	}
+	for _, it := range l.Items {
+		if it.Key == key {
+			return true
+		}
+	}
+	return false
 }

@@ -10,16 +10,20 @@ import (
 type ItemState int
 
 const (
-	ItemNew     ItemState = iota // not linked to a task: show it in its plugin group
-	ItemUpdated                  // linked, with activity since the link: show it in ↻ Updates
-	ItemLinked                   // linked, nothing new: hide it, and tell the plugin again
+	ItemNew            ItemState = iota // not linked to a task: show it in its plugin group
+	ItemUpdated                         // linked, with activity since the link: show it in ↻ Updates
+	ItemLinked                          // linked, nothing new: hide it, and tell the plugin again
+	ItemClosedOpen                      // persistent, task closed but not hidden: still open at the source
+	ItemHiddenActivity                  // task hidden, with activity since the hide
 )
 
 // ClassifyItem finds the task linked to a plugin item by its key, and says
-// whether the item is new, updated since the link, or already handled. If
+// whether the item is new, updated since the link (or since the hide, for
+// a hidden task), still open at the source although its task is closed
+// (persistent items only), or already handled. If
 // several tasks are linked to the item (two machines linked it before
 // syncing), the most recently linked one counts.
-func (s *State) ClassifyItem(plugin, key string, updatedAt time.Time) (ItemState, *Task) {
+func (s *State) ClassifyItem(plugin, key string, updatedAt time.Time, persistent bool) (ItemState, *Task) {
 	var best *Task
 	var bestAt time.Time
 	for _, t := range s.Tasks {
@@ -34,8 +38,15 @@ func (s *State) ClassifyItem(plugin, key string, updatedAt time.Time) (ItemState
 	switch {
 	case best == nil:
 		return ItemNew, nil
+	case best.Hidden():
+		hiddenAt, _ := time.Parse(time.RFC3339, best.Ext(plugin, "hidden_at"))
+		if updatedAt.After(hiddenAt) {
+			return ItemHiddenActivity, best
+		}
 	case updatedAt.After(bestAt):
 		return ItemUpdated, best
+	case persistent && !best.Status.Open():
+		return ItemClosedOpen, best
 	}
 	return ItemLinked, best
 }
@@ -126,4 +137,49 @@ func (s *State) projectNamed(name string) *Project {
 		}
 	}
 	return nil
+}
+
+// HideItem returns the ops that hide a plugin item with no task yet: a
+// linked task in the backlog, dropped at once, with x.<plugin>.hidden_at.
+func HideItem(s *State, r LinkRequest, now time.Time) ([]Op, string, error) {
+	r.Backlog = true
+	ops, id, err := LinkItem(s, r, now)
+	if err != nil {
+		return nil, "", err
+	}
+	return append(ops,
+		setTask(now, id, "status", StatusDropped),
+		setTask(now, id, "completed_at", now.UTC()),
+		setTask(now, id, "x."+r.Plugin+".hidden_at", now.UTC().Format(time.RFC3339)),
+	), id, nil
+}
+
+// HideTask hides the plugin item behind an existing task: it drops the
+// task if it's open, and sets x.<plugin>.hidden_at to now. Hiding again
+// moves hidden_at, so only activity after it shows.
+func HideTask(t *Task, plugin string, now time.Time) []Op {
+	var ops []Op
+	if t.Status.Open() {
+		ops = SetStatus(t, StatusDropped, "", now)
+	}
+	return append(ops, setTask(now, t.ID, "x."+plugin+".hidden_at", now.UTC().Format(time.RFC3339)))
+}
+
+// Unhide puts a hidden item back in the inbox, as new: it clears the link
+// and hidden_at. The task stays dropped, and so moves to History.
+func Unhide(t *Task, plugin string, now time.Time) []Op {
+	return []Op{
+		setTask(now, t.ID, "x."+plugin+".item", ""),
+		setTask(now, t.ID, "x."+plugin+".hidden_at", ""),
+	}
+}
+
+// TaskFromHidden turns a hidden item's task into a real one: todo, in the
+// backlog, no longer hidden, still linked.
+func TaskFromHidden(t *Task, plugin string, now time.Time) []Op {
+	ops := SetStatus(t, StatusTodo, "", now)
+	if t.OnWeek {
+		ops = append(ops, Defer(t, now)...)
+	}
+	return append(ops, setTask(now, t.ID, "x."+plugin+".hidden_at", ""))
 }

@@ -100,7 +100,7 @@ dkt ls [--backlog | --history] [-p project] [--tag tag]
 |---|---|---|
 | (default) | Open tasks on this week, plus tasks marked done since Monday 00:00 | Category (Work, Personal) |
 | `--backlog` | Open tasks not on this week | Inbox, then projects by name |
-| `--history` | Done and dropped tasks, newest first, with the date closed | None |
+| `--history` | Done and dropped tasks, newest first, with the date closed. Not tasks hidden from the [inbox](tui.md#inbox). | None |
 
 `--backlog` and `--history` cannot be used together. With `--history`, `-p` also matches archived projects.
 

@@ -60,6 +60,10 @@ type Item struct {
 	URL       string        `json:"url"`
 	UpdatedAt time.Time     `json:"updated_at"`
 	Task      SuggestedTask `json:"task"`
+
+	// Persistent items stay listed while they're open at the source (owed
+	// work): they can't be dismissed, only made a task, hidden or postponed.
+	Persistent bool `json:"persistent"`
 }
 
 // SuggestedTask holds the task fields a plugin suggests for an item.
@@ -148,7 +152,10 @@ func Inbox(ctx context.Context, name, cursor string) (List, error) {
 				l.GroupVerbs = append(l.GroupVerbs, v)
 			}
 		case "item":
-			if m.ID != "" && m.Key != "" { // without them it can't be acted on or linked
+			// Without an id and key it can't be acted on or linked. They're
+			// identities, so one with control characters is dropped, not
+			// cleaned: a cleaned key could match the wrong task.
+			if m.ID != "" && m.Key != "" && line(m.ID) == m.ID && line(m.Key) == m.Key {
 				l.Items = append(l.Items, cleanItem(m.Item))
 			}
 		case "end":
@@ -236,6 +243,10 @@ func lastLine(s string) string {
 // and other control characters are dropped.
 func line(s string) string { return clean(s, false) }
 
+// Line is line for other packages: for plugin text stored before it was
+// cleaned on the way in, e.g. an item key kept on a task.
+func Line(s string) string { return line(s) }
+
 // clean drops control characters from s, keeping tabs and newlines if
 // multiline, and turning them into spaces if not.
 func clean(s string, multiline bool) string {
@@ -255,7 +266,7 @@ func clean(s string, multiline bool) string {
 
 func cleanItem(it Item) Item {
 	it.Label, it.Ref, it.Title = line(it.Label), line(it.Ref), line(it.Title)
-	it.URL = webURL(it.URL)
+	it.URL = WebURL(it.URL)
 	t := &it.Task
 	t.Title, t.Category, t.Note = line(t.Title), line(t.Category), clean(t.Note, true)
 	tags := make([]string, len(t.Tags))
@@ -271,10 +282,10 @@ func cleanItem(it Item) Item {
 	return it
 }
 
-// webURL is u if it is an http or https URL with a host, else "". The TUI
+// WebURL is u if it is an http or https URL with a host, else "". The TUI
 // hands it to the system's URL opener, which must never get a file path,
 // another scheme, or something it could read as an option.
-func webURL(u string) string {
+func WebURL(u string) string {
 	p, err := url.Parse(u)
 	if err != nil || (p.Scheme != "http" && p.Scheme != "https") || p.Host == "" || strings.HasPrefix(u, "-") {
 		return ""

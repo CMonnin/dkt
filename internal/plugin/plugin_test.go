@@ -348,3 +348,34 @@ func TestInboxKeepsOnlyWebURLs(t *testing.T) {
 		t.Fatalf("URLs =\n%q\nwant\n%q", got, want)
 	}
 }
+
+func TestInboxReadsPersistent(t *testing.T) {
+	fake(t, `{"type":"hello","api":1,"plugin":"fake","stream":false}
+{"type":"item","id":"open:o/r#1","key":"o/r#1","persistent":true}
+{"type":"item","id":"2","key":"o/r#2"}
+{"type":"end","cursor":"c"}
+`)
+	l, err := Inbox(context.Background(), "fake", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !l.Items[0].Persistent || l.Items[1].Persistent {
+		t.Fatalf("Persistent = %v, %v; want true, false", l.Items[0].Persistent, l.Items[1].Persistent)
+	}
+}
+
+func TestInboxSkipsItemsWithControlCharactersInIDOrKey(t *testing.T) {
+	fake(t, `{"type":"hello","api":1,"plugin":"fake","stream":false}
+{"type":"item","id":"1","key":"o/r#1\u001b]0;pwned\u0007"}
+{"type":"item","id":"2\u001b[2J","key":"o/r#2"}
+{"type":"item","id":"3","key":"o/r#3"}
+{"type":"end","cursor":"c"}
+`)
+	l, err := Inbox(context.Background(), "fake", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Items) != 1 || l.Items[0].ID != "3" {
+		t.Fatalf("items = %+v, want only id 3", l.Items)
+	}
+}

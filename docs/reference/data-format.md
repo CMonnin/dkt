@@ -88,7 +88,16 @@ A `task.set` or `project.set` whose `field` starts with `x.` sets a hidden field
 - `<key>` is any non-empty string, and may contain `.` and `/`.
 - The value is a string with no newline. An empty string clears the field.
 
-dkt writes these fields. Plugins never do. Example:
+dkt writes these fields. Plugins never do. The ones dkt uses:
+
+| Field | On | Value |
+|---|---|---|
+| `x.<plugin>.item` | Task | The plugin item's key: the task was made from it |
+| `x.<plugin>.linked_at` | Task | RFC 3339 time the link was made |
+| `x.<plugin>.hidden_at` | Task | RFC 3339 time the user hid the item. A task with one is *hidden*: it's on the Hidden tab, not in History. |
+| `x.<plugin>.project.<key>` | Project | `"1"`: the project is linked to the plugin's project key |
+
+Example:
 
 ```json
 {"id":"01M3A3NMDX...","ts":"2026-11-27T09:01:00Z","host":"laptop","type":"task.set","target":"01M3A3NMCV...","field":"x.gh.item","value":"CoBrALab/RABIES#533"}
